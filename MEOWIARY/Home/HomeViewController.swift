@@ -104,13 +104,14 @@ final class HomeViewController: BaseViewController {
         print("연도 레이블 초기값 설정: \(yearLabel.text ?? "nil")")
     }
     
+    // 뷰가 나타날 때 현재 월로 스크롤 - viewDidAppear 수정
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
         // 뷰가 나타난 후 카드/캘린더 상태 갱신
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            // 캘린더 뷰의 레이아웃 강제 갱신
+            // 카드컬렉션뷰 레이아웃 강제 갱신
             self.cardCalendarView.forceUpdateLayout()
             
             // 연도 레이블 확인 및 업데이트
@@ -120,10 +121,6 @@ final class HomeViewController: BaseViewController {
                 print("연도 레이블 보정: \(self.yearLabel.text ?? "nil")")
             }
         }
-        
-        // 현재 UI 상태 로깅
-        print("연도 레이블 표시 상태: \(yearLabel.isHidden), 텍스트: \(yearLabel.text ?? "nil")")
-        print("월 레이블 표시 상태: \(!cardCalendarView.monthLabel.isHidden), 텍스트: \(cardCalendarView.monthLabel.text ?? "nil")")
     }
     
     // MARK: - UI Setup
@@ -318,8 +315,12 @@ final class HomeViewController: BaseViewController {
             .disposed(by: disposeBag)
     }
     
-    // MARK: - Actions
     private func flipCardToCalendar() {
+        // 월 선택이 정확하도록 카드뷰에 현재 월 정보 전달
+        let currentMonth = Calendar.current.component(.month, from: Date())
+        cardCalendarView.updateMonth(month: currentMonth)
+        
+        // 카드 뒤집기 실행
         cardCalendarView.flipToCalendar()
         
         // 애니메이션 없이 버튼 상태 변경
@@ -328,9 +329,13 @@ final class HomeViewController: BaseViewController {
             backButton.isHidden = false
             self.view.layoutIfNeeded()
         }
+        
+        // 디버그 로그
+        print("HomeViewController: 카드에서 캘린더로 플립")
     }
-    
+
     private func flipCalendarToCard() {
+        // 카드 상태로 되돌리기
         cardCalendarView.flipToCard()
         
         // 애니메이션 없이 버튼 상태 변경
@@ -339,8 +344,23 @@ final class HomeViewController: BaseViewController {
             backButton.isHidden = true
             self.view.layoutIfNeeded()
         }
+        
+        // 디버그 로그
+        print("HomeViewController: 캘린더에서 카드로 플립")
     }
-}
+
+    // 선택된 월 카드로 스크롤 하기 위한 메서드 추가
+    private func scrollToCurrentMonth() {
+        // 현재 월로 스크롤
+        let currentMonth = Calendar.current.component(.month, from: Date())
+        cardCalendarView.updateMonth(month: currentMonth)
+        
+        // 디버그 로그
+        print("HomeViewController: 현재 월(\(currentMonth)월)로 스크롤")
+    }
+
+    
+    }
 
 // MARK: - Rx Custom Binder for CardCalendarView
 extension Reactive where Base: CardCalendarView {
