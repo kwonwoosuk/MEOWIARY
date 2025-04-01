@@ -73,20 +73,20 @@ final class LocationSearchViewModel: NSObject, BaseViewModel {
     
     // 수동으로 위치 선택된 경우
     input.manualLocationSelected
-        .subscribe(onNext: { [weak self] coordinate, addressName in
-            guard let self = self else { return }
-            
-            self.isUsingCurrentLocationRelay.accept(false)
-            self.userLocationRelay.accept(coordinate)
-            self.selectedAddressNameRelay.accept(addressName)
-            
-            // 로딩 표시 확실히 표시
-            self.isLoadingRelay.accept(true)
-            
-            // 병원 검색
-            self.searchHospitalsNear(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        })
-        .disposed(by: disposeBag)
+      .subscribe(onNext: { [weak self] coordinate, addressName in
+        guard let self = self else { return }
+        
+        self.isUsingCurrentLocationRelay.accept(false)
+        self.userLocationRelay.accept(coordinate)
+        self.selectedAddressNameRelay.accept(addressName)
+        
+        // 로딩 표시 확실히 표시
+        self.isLoadingRelay.accept(true)
+        
+        // 병원 검색
+        self.searchHospitalsNear(latitude: coordinate.latitude, longitude: coordinate.longitude)
+      })
+      .disposed(by: disposeBag)
     
     input.resetToCurrentLocation
       .subscribe(onNext: { [weak self] in
@@ -112,14 +112,30 @@ final class LocationSearchViewModel: NSObject, BaseViewModel {
     // 위치 서비스 확인을 비동기적으로 처리
     DispatchQueue.global().async { [weak self] in
       // 시스템 위치 서비스 활성화 여부 확인
-      if CLLocationManager.locationServicesEnabled() {
-        DispatchQueue.main.async {
-          self?.handleLocationServicesEnabled()
-        }
-      } else {
-        DispatchQueue.main.async {
-          self?.errorRelay.accept("위치 서비스가 비활성화되어 있습니다.")
-          self?.isLoadingRelay.accept(false)
+      let isLocationServicesEnabled = CLLocationManager.locationServicesEnabled()
+      
+      DispatchQueue.main.async {
+        guard let self = self else { return }
+        
+        if isLocationServicesEnabled {
+          // 허용된 위치 권한 상태에 따라 처리
+          let status = self.locationManager.authorizationStatus
+          
+          switch status {
+          case .authorizedWhenInUse, .authorizedAlways:
+            self.locationManager.startUpdatingLocation()
+          case .notDetermined:
+            self.locationManager.requestWhenInUseAuthorization()
+          default:
+            // 권한이 없는 경우에도 기본 서울 위치로 검색
+            self.errorRelay.accept("위치 권한이 없어 기본 위치로 검색합니다.")
+            self.searchHospitalsNear(latitude: 37.5665, longitude: 126.9780)
+          }
+        } else {
+          self.errorRelay.accept("위치 서비스가 비활성화되어 있습니다.")
+          self.isLoadingRelay.accept(false)
+          // 기본 서울 위치로 검색
+          self.searchHospitalsNear(latitude: 37.5665, longitude: 126.9780)
         }
       }
     }
@@ -145,14 +161,60 @@ final class LocationSearchViewModel: NSObject, BaseViewModel {
   private func checkDeviceLocation() {
     isLoadingRelay.accept(true)
     
-    // 시스템 위치 서비스 활성화 여부 확인
-    if CLLocationManager.locationServicesEnabled() {
-      checkCurrentAuthorizationStatus()
-    } else {
-      // 위치 서비스가 비활성화된 경우
+    // 위치 서비스 확인을 백그라운드 큐에서 실행
+    DispatchQueue.global().async { [weak self] in
+      // 시스템 위치 서비스 활성화 여부 확인
+      let isLocationServicesEnabled = CLLocationManager.locationServicesEnabled()
+      
+      // UI 업데이트는 메인 스레드에서 수행
+      DispatchQueue.main.async {
+        guard let self = self else { return }
+        
+        if isLocationServicesEnabled {
+          // 위치 서비스가 활성화된 경우 권한 상태 확인
+          self.handleLocationStatus()
+        } else {
+          // 위치 서비스가 비활성화된 경우
+          self.shouldShowAddressSearchRelay.accept(true)
+          self.errorRelay.accept("위치 서비스가 꺼져 있어 위치 권한을 요청할 수 없습니다. 주소 검색으로 전환합니다.")
+          self.isLoadingRelay.accept(false)
+          
+          // 기본 서울 위치 사용
+          self.searchHospitalsNear(latitude: 37.5665, longitude: 126.9780)
+        }
+      }
+    }
+  }
+  private func handleLocationStatus() {
+    let status = locationManager.authorizationStatus
+    
+    switch status {
+    case .notDetermined:
+      // 아직 결정되지 않은 상태 - 권한 요청
+      locationManager.requestWhenInUseAuthorization()
+      locationManager.desiredAccuracy = kCLLocationAccuracyBest
+      
+    case .denied, .restricted:
+      // 거부된 상태 - 주소 검색 UI로 전환
       shouldShowAddressSearchRelay.accept(true)
-      errorRelay.accept("위치 서비스가 꺼져 있어 위치 권한을 요청할 수 없습니다. 주소 검색으로 전환합니다.")
+      errorRelay.accept("위치 권한이 거부되었습니다. 주소 검색으로 전환합니다.")
       isLoadingRelay.accept(false)
+      
+      // 기본 서울 위치 사용
+      searchHospitalsNear(latitude: 37.5665, longitude: 126.9780)
+      
+    case .authorizedWhenInUse, .authorizedAlways:
+      // 권한 허용 상태 - 위치 업데이트 시작
+      locationManager.startUpdatingLocation()
+      
+    @unknown default:
+      // 알 수 없는 상태 - 주소 검색 UI로 전환
+      shouldShowAddressSearchRelay.accept(true)
+      errorRelay.accept("알 수 없는 위치 권한 상태입니다. 주소 검색으로 전환합니다.")
+      isLoadingRelay.accept(false)
+      
+      // 기본 서울 위치 사용
+      searchHospitalsNear(latitude: 37.5665, longitude: 126.9780)
     }
   }
   
