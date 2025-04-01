@@ -1,15 +1,11 @@
-//
-//  LocationSearchViewController.swift
-//  MEOWIARY
-//
-//  Created by 권우석 on 4/1/25.
-//
+// LocationSearchViewController.swift
 
 import UIKit
 import RxSwift
 import RxCocoa
 import CoreLocation
 import SnapKit
+import MapKit
 
 final class LocationSearchViewController: BaseViewController {
   
@@ -20,6 +16,7 @@ final class LocationSearchViewController: BaseViewController {
   
   // MARK: - UI Components
   private let navigationBarView = CustomNavigationBarView()
+  private let mapView = MKMapView()
   private let locationInfoView = UIView()
   private let locationIcon = UIImageView()
   private let locationLabel = UILabel()
@@ -29,7 +26,7 @@ final class LocationSearchViewController: BaseViewController {
   private let emptyResultView = UIView()
   private let emptyImageView = UIImageView()
   private let emptyLabel = UILabel()
-  
+  private var hasManuallySelectedLocation = false
   // MARK: - Lifecycle
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -37,12 +34,15 @@ final class LocationSearchViewController: BaseViewController {
   
   override func viewDidAppear(_ animated: Bool) {
     super.viewDidAppear(animated)
-    viewModel.fetchHospitals()
+    if !hasManuallySelectedLocation {
+           viewModel.fetchHospitals()
+       }
   }
   
   // MARK: - UI Setup
   override func configureHierarchy() {
     view.addSubview(navigationBarView)
+    view.addSubview(mapView)
     view.addSubview(locationInfoView)
     locationInfoView.addSubview(locationIcon)
     locationInfoView.addSubview(locationLabel)
@@ -67,6 +67,12 @@ final class LocationSearchViewController: BaseViewController {
       make.leading.trailing.equalToSuperview().inset(DesignSystem.Layout.standardMargin)
       make.height.equalTo(50)
     }
+
+    mapView.snp.makeConstraints { make in
+      make.top.equalTo(locationInfoView.snp.bottom).offset(DesignSystem.Layout.smallMargin)
+      make.leading.trailing.equalToSuperview().inset(DesignSystem.Layout.standardMargin)
+      make.height.equalTo(200) 
+    }
     
     locationIcon.snp.makeConstraints { make in
       make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
@@ -86,7 +92,7 @@ final class LocationSearchViewController: BaseViewController {
     }
     
     tableView.snp.makeConstraints { make in
-      make.top.equalTo(locationInfoView.snp.bottom).offset(DesignSystem.Layout.smallMargin)
+      make.top.equalTo(mapView.snp.bottom).offset(DesignSystem.Layout.smallMargin)
       make.leading.trailing.bottom.equalToSuperview()
     }
     
@@ -114,8 +120,15 @@ final class LocationSearchViewController: BaseViewController {
   }
   
   override func configureView() {
-    // 네비게이션 바 설정
-    navigationBarView.configure(title: "근처 24시 병원", leftButtonType: .back)
+    let refreshImage = UIImage(systemName: "dot.scope")
+    navigationBarView.configure(
+      title: "24시 병원찾기",
+      leftButtonType: .back,
+      rightButtonImage: refreshImage
+    )
+    
+    // MapKit 델리게이트 설정
+    mapView.delegate = self
     
     // 위치 정보 컨테이너 뷰 설정
     locationInfoView.backgroundColor = DesignSystem.Color.Background.lightBlue.inUIColor()
@@ -140,7 +153,7 @@ final class LocationSearchViewController: BaseViewController {
     tableView.register(HospitalCell.self, forCellReuseIdentifier: "HospitalCell")
     tableView.backgroundColor = .white
     tableView.separatorStyle = .singleLine
-    tableView.rowHeight = 70
+    tableView.rowHeight = 90
     
     // 로딩 인디케이터 설정
     loadingIndicator.hidesWhenStopped = true
@@ -160,16 +173,25 @@ final class LocationSearchViewController: BaseViewController {
     emptyLabel.textColor = DesignSystem.Color.Tint.darkGray.inUIColor()
     emptyLabel.font = DesignSystem.Font.Weight.regular(size: DesignSystem.Font.Size.medium)
     
+    mapView.layer.cornerRadius = DesignSystem.Layout.cornerRadius
+    mapView.clipsToBounds = true
+    
     // 화면 배경색 설정
     view.backgroundColor = .white
   }
   
   // MARK: - Binding
   override func bind() {
-    
     navigationBarView.leftButtonTapObservable
       .subscribe(onNext: { [weak self] in
         self?.dismiss(animated: true)
+      })
+      .disposed(by: disposeBag)
+    
+    navigationBarView.rightButtonTapObservable
+      .subscribe(onNext: { [weak self] in
+        self?.viewModel.resetToCurrentLocation()
+        self?.showToast(message: "현재위치로 다시 검색합니다." ,duration: 1)
       })
       .disposed(by: disposeBag)
     
@@ -187,16 +209,31 @@ final class LocationSearchViewController: BaseViewController {
     let input = LocationSearchViewModel.Input(
       viewDidLoad: viewDidLoadEvent.asObservable(),
       refresh: refreshEvent.asObservable(),
-      manualLocationSelected: manualLocationSelectedSubject.asObservable()
+      manualLocationSelected: manualLocationSelectedSubject.asObservable(),
+      resetToCurrentLocation: navigationBarView.rightButtonTapObservable
     )
     
     let output = viewModel.transform(input: input)
+    
+    // 위치 정보 바인딩 - 지도에 표시
+    output.userLocation
+      .drive(onNext: { [weak self] coordinate in
+        self?.updateMapLocation(coordinate: coordinate)
+      })
+      .disposed(by: disposeBag)
     
     // 병원 목록 바인딩
     output.hospitals
       .drive(tableView.rx.items(cellIdentifier: "HospitalCell", cellType: HospitalCell.self)) { _, hospital, cell in
         cell.configure(with: hospital)
       }
+      .disposed(by: disposeBag)
+    
+    // 병원 목록을 지도에 표시 (추가된 부분)
+    output.hospitals
+      .drive(onNext: { [weak self] hospitals in
+        self?.addHospitalAnnotations(hospitals: hospitals)
+      })
       .disposed(by: disposeBag)
     
     // 로딩 상태 바인딩
@@ -233,6 +270,8 @@ final class LocationSearchViewController: BaseViewController {
       .drive(onNext: { [weak self] addressName in
         if let addressName = addressName {
           self?.locationLabel.text = "\(addressName) 주변"
+        } else {
+          self?.locationLabel.text = "현재 위치 주변"
         }
       })
       .disposed(by: disposeBag)
@@ -268,6 +307,48 @@ final class LocationSearchViewController: BaseViewController {
       .disposed(by: disposeBag)
     
     viewDidLoadEvent.onNext(())
+  }
+  
+  private func updateMapLocation(coordinate: CLLocationCoordinate2D) {
+    // 지도 중심 및 줌 레벨 설정
+    let region = MKCoordinateRegion(
+      center: coordinate,
+      latitudinalMeters: 1000,  // 1km 반경
+      longitudinalMeters: 1000
+    )
+    mapView.setRegion(region, animated: true)
+    
+    // 현재 위치 표시 어노테이션 추가
+    let annotation = MKPointAnnotation()
+    annotation.coordinate = coordinate
+    annotation.title = "현재 위치"
+    
+    // 기존 어노테이션 중 현재 위치 표시만 제거
+    mapView.annotations.forEach { ann in
+      if let pointAnn = ann as? MKPointAnnotation, pointAnn.title == "현재 위치" {
+        mapView.removeAnnotation(pointAnn)
+      }
+    }
+    
+    mapView.addAnnotation(annotation)
+  }
+  
+  private func addHospitalAnnotations(hospitals: [Hospital]) {
+    // 기존 병원 어노테이션 제거
+    mapView.annotations.forEach { ann in
+      if let pointAnn = ann as? MKPointAnnotation, pointAnn.title != "현재 위치" {
+        mapView.removeAnnotation(pointAnn)
+      }
+    }
+    
+    // 병원 어노테이션 추가
+    for hospital in hospitals.prefix(5) { // 상위 5개만 지도에 표시
+      let annotation = MKPointAnnotation()
+      annotation.coordinate = hospital.coordinate
+      annotation.title = hospital.name
+      annotation.subtitle = hospital.address
+      mapView.addAnnotation(annotation)
+    }
   }
   
   // MARK: - Helper Methods
@@ -333,5 +414,40 @@ final class LocationSearchViewController: BaseViewController {
 extension LocationSearchViewController: AddressSearchViewControllerDelegate {
   func didSelectLocation(coordinate: CLLocationCoordinate2D, addressName: String) {
     manualLocationSelectedSubject.onNext((coordinate, addressName))
+  }
+}
+
+// MARK: - MKMapViewDelegate
+extension LocationSearchViewController: MKMapViewDelegate {
+  func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+    if annotation.title == "현재 위치" {
+      // 현재 위치 마커 커스텀
+      let identifier = "CurrentLocation"
+      var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
+      
+      if annotationView == nil {
+        annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+        (annotationView as? MKMarkerAnnotationView)?.markerTintColor = .systemBlue
+        annotationView?.canShowCallout = true
+      } else {
+        annotationView?.annotation = annotation
+      }
+      
+      return annotationView
+    } else {
+      // 병원 위치 마커 커스텀
+      let identifier = "HospitalLocation"
+      var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
+      
+      if annotationView == nil {
+        annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+        (annotationView as? MKMarkerAnnotationView)?.markerTintColor = DesignSystem.Color.Tint.main.inUIColor()
+        annotationView?.canShowCallout = true
+      } else {
+        annotationView?.annotation = annotation
+      }
+      
+      return annotationView
+    }
   }
 }
