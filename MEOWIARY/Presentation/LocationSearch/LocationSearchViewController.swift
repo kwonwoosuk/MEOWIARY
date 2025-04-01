@@ -27,6 +27,7 @@ final class LocationSearchViewController: BaseViewController {
   private let emptyImageView = UIImageView()
   private let emptyLabel = UILabel()
   private var hasManuallySelectedLocation = false
+  
   // MARK: - Lifecycle
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -35,8 +36,8 @@ final class LocationSearchViewController: BaseViewController {
   override func viewDidAppear(_ animated: Bool) {
     super.viewDidAppear(animated)
     if !hasManuallySelectedLocation {
-           viewModel.fetchHospitals()
-       }
+      viewModel.fetchHospitals()
+    }
   }
   
   // MARK: - UI Setup
@@ -71,7 +72,7 @@ final class LocationSearchViewController: BaseViewController {
     mapView.snp.makeConstraints { make in
       make.top.equalTo(locationInfoView.snp.bottom).offset(DesignSystem.Layout.smallMargin)
       make.leading.trailing.equalToSuperview().inset(DesignSystem.Layout.standardMargin)
-      make.height.equalTo(200) 
+      make.height.equalTo(200)
     }
     
     locationIcon.snp.makeConstraints { make in
@@ -229,7 +230,7 @@ final class LocationSearchViewController: BaseViewController {
       }
       .disposed(by: disposeBag)
     
-    // 병원 목록을 지도에 표시 (추가된 부분)
+    // 병원 목록을 지도에 표시
     output.hospitals
       .drive(onNext: { [weak self] hospitals in
         self?.addHospitalAnnotations(hospitals: hospitals)
@@ -238,11 +239,17 @@ final class LocationSearchViewController: BaseViewController {
     
     // 로딩 상태 바인딩
     output.isLoading
+      .drive(loadingIndicator.rx.isAnimating)
+      .disposed(by: disposeBag)
+    
+    // 로딩 상태 변경 시 UI 업데이트 추가
+    output.isLoading
       .drive(onNext: { [weak self] isLoading in
-        if isLoading {
-          self?.loadingIndicator.startAnimating()
-        } else {
-          self?.loadingIndicator.stopAnimating()
+        if !isLoading {
+          // 로딩이 끝나면 테이블 뷰와 빈 결과 화면 업데이트
+          let isEmpty = (self?.viewModel.hospitalsRelay.value.isEmpty ?? true)
+          self?.emptyResultView.isHidden = !isEmpty
+          self?.tableView.isHidden = isEmpty
         }
       })
       .disposed(by: disposeBag)
@@ -262,6 +269,7 @@ final class LocationSearchViewController: BaseViewController {
       .map { $0.isEmpty && !self.loadingIndicator.isAnimating }
       .drive(onNext: { [weak self] isEmpty in
         self?.emptyResultView.isHidden = !isEmpty
+        self?.tableView.isHidden = isEmpty
       })
       .disposed(by: disposeBag)
     
@@ -393,61 +401,62 @@ final class LocationSearchViewController: BaseViewController {
     // 카카오맵 앱 URL 스킴 사용
     let kakaoMapBaseURL = "kakaomap://route"
     let destinationName = hospital.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-    let latitude = hospital.coordinate.latitude
+    let latitude = hospital.coordinate
     let longitude = hospital.coordinate.longitude
-    
-    let urlString = "\(kakaoMapBaseURL)?ep=\(latitude),\(longitude)&by=CAR&ename=\(destinationName)"
-    
-    if let url = URL(string: urlString), UIApplication.shared.canOpenURL(url) {
-      UIApplication.shared.open(url)
-    } else {
-      // 카카오맵 앱이 설치되어 있지 않은 경우 웹 버전으로 열기
-      let webURLString = "https://map.kakao.com/link/to/\(destinationName),\(latitude),\(longitude)"
-      if let webURL = URL(string: webURLString) {
-        UIApplication.shared.open(webURL)
+        
+        let urlString = "\(kakaoMapBaseURL)?ep=\(latitude),\(longitude)&by=CAR&ename=\(destinationName)"
+        
+        if let url = URL(string: urlString), UIApplication.shared.canOpenURL(url) {
+          UIApplication.shared.open(url)
+        } else {
+          // 카카오맵 앱이 설치되어 있지 않은 경우 웹 버전으로 열기
+          let webURLString = "https://map.kakao.com/link/to/\(destinationName),\(latitude),\(longitude)"
+          if let webURL = URL(string: webURLString) {
+            UIApplication.shared.open(webURL)
+          }
+        }
       }
     }
-  }
-}
 
-// MARK: - AddressSearchViewControllerDelegate
-extension LocationSearchViewController: AddressSearchViewControllerDelegate {
-  func didSelectLocation(coordinate: CLLocationCoordinate2D, addressName: String) {
-    manualLocationSelectedSubject.onNext((coordinate, addressName))
-  }
-}
-
-// MARK: - MKMapViewDelegate
-extension LocationSearchViewController: MKMapViewDelegate {
-  func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
-    if annotation.title == "현재 위치" {
-      // 현재 위치 마커 커스텀
-      let identifier = "CurrentLocation"
-      var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
-      
-      if annotationView == nil {
-        annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
-        (annotationView as? MKMarkerAnnotationView)?.markerTintColor = .systemBlue
-        annotationView?.canShowCallout = true
-      } else {
-        annotationView?.annotation = annotation
+    // MARK: - AddressSearchViewControllerDelegate
+    extension LocationSearchViewController: AddressSearchViewControllerDelegate {
+      func didSelectLocation(coordinate: CLLocationCoordinate2D, addressName: String) {
+        hasManuallySelectedLocation = true
+        manualLocationSelectedSubject.onNext((coordinate, addressName))
       }
-      
-      return annotationView
-    } else {
-      // 병원 위치 마커 커스텀
-      let identifier = "HospitalLocation"
-      var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
-      
-      if annotationView == nil {
-        annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
-        (annotationView as? MKMarkerAnnotationView)?.markerTintColor = DesignSystem.Color.Tint.main.inUIColor()
-        annotationView?.canShowCallout = true
-      } else {
-        annotationView?.annotation = annotation
-      }
-      
-      return annotationView
     }
-  }
-}
+
+    // MARK: - MKMapViewDelegate
+    extension LocationSearchViewController: MKMapViewDelegate {
+      func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+        if annotation.title == "현재 위치" {
+          // 현재 위치 마커 커스텀
+          let identifier = "CurrentLocation"
+          var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
+          
+          if annotationView == nil {
+            annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+            (annotationView as? MKMarkerAnnotationView)?.markerTintColor = .systemBlue
+            annotationView?.canShowCallout = true
+          } else {
+            annotationView?.annotation = annotation
+          }
+          
+          return annotationView
+        } else {
+          // 병원 위치 마커 커스텀
+          let identifier = "HospitalLocation"
+          var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
+          
+          if annotationView == nil {
+            annotationView = MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+            (annotationView as? MKMarkerAnnotationView)?.markerTintColor = DesignSystem.Color.Tint.main.inUIColor()
+            annotationView?.canShowCallout = true
+          } else {
+            annotationView?.annotation = annotation
+          }
+          
+          return annotationView
+        }
+      }
+    }

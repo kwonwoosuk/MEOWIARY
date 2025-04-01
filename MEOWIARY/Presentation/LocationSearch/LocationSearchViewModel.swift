@@ -207,20 +207,24 @@ final class LocationSearchViewModel: NSObject, BaseViewModel {
         )
         
         DispatchQueue.main.async { [weak self] in
-          self?.hospitalsRelay.accept(hospitals)
-          self?.isLoadingRelay.accept(false)
+          guard let self = self else { return }
+          
+          self.hospitalsRelay.accept(hospitals)
+          self.isLoadingRelay.accept(false) // 로딩 인디케이터 비활성화
           
           if hospitals.isEmpty {
-            self?.errorRelay.accept("주변에 24시 동물병원이 없습니다.")
+            self.errorRelay.accept("주변에 24시 동물병원이 없습니다.")
           } else {
-            self?.errorRelay.accept(nil)
+            self.errorRelay.accept(nil)
           }
         }
       } catch {
         DispatchQueue.main.async { [weak self] in
-          self?.hospitalsRelay.accept([])
-          self?.isLoadingRelay.accept(false)
-          self?.errorRelay.accept("병원 검색 중 오류가 발생했습니다: \(error.localizedDescription)")
+          guard let self = self else { return }
+          
+          self.hospitalsRelay.accept([])
+          self.isLoadingRelay.accept(false) // 오류 발생 시에도 로딩 인디케이터 비활성화
+          self.errorRelay.accept("병원 검색 중 오류가 발생했습니다: \(error.localizedDescription)")
         }
       }
     }
@@ -246,22 +250,9 @@ extension LocationSearchViewModel: CLLocationManagerDelegate {
     }
   }
   
-  // 수동 위치 선택 처리
-  private func handleManualLocationSelected(coordinate: CLLocationCoordinate2D, addressName: String) {
-      isUsingCurrentLocationRelay.accept(false)
-      userLocationRelay.accept(coordinate)
-      selectedAddressNameRelay.accept(addressName)
-      
-      // 로딩 상태 활성화 (확실히 하기 위해)
-      isLoadingRelay.accept(true)
-      
-      searchHospitalsNear(latitude: coordinate.latitude, longitude: coordinate.longitude)
-  }
-  
-  
   func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
     // 위치 가져오기 실패 시
-    isLoadingRelay.accept(false)
+    isLoadingRelay.accept(false) // 로딩 인디케이터 비활성화
     errorRelay.accept("위치 정보를 가져오는데 실패했습니다.")
     shouldShowAddressSearchRelay.accept(true)
     
@@ -274,4 +265,3 @@ extension LocationSearchViewModel: CLLocationManagerDelegate {
     checkCurrentAuthorizationStatus()
   }
 }
-
