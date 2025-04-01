@@ -26,7 +26,7 @@ final class MWTabBarController: UITabBarController {
         addTab.tabBarItem.image = DesignSystem.Icon.Navigation.add.toUIImage()
         addTab.tabBarItem.title = ""
         
-        let chartsTab = UIViewController()
+        let chartsTab = UIViewController() // 추후 구현할 차트 화면
         chartsTab.tabBarItem.image = DesignSystem.Icon.Navigation.chart.toUIImage()
         chartsTab.tabBarItem.title = "모아보기"
         
@@ -93,5 +93,12 @@ extension MWTabBarController: UITabBarControllerDelegate {
         addDiaryVC.view.backgroundColor = .white
         addDiaryVC.modalPresentationStyle = .fullScreen
         present(addDiaryVC, animated: true)
+    }
+    
+    // 24시 병원 찾기 기능
+    func presentHospitalSearchController() {
+        let hospitalSearchVC = LocationSearchViewController()
+        hospitalSearchVC.modalPresentationStyle = .fullScreen
+        present(hospitalSearchVC, animated: true)
     }
 }

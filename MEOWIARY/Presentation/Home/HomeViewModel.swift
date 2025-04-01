@@ -10,7 +10,6 @@ import RxSwift
 import RxCocoa
 import UIKit
 
-// ToggleButtonStyle 구조체 추가
 struct ToggleButtonStyle {
     let title: String
     let backgroundColor: UIColor
@@ -44,7 +43,6 @@ class HomeViewModel: BaseViewModel {
     private let monthSubject = BehaviorRelay<Int>(value: Calendar.current.component(.month, from: Date()))
     private let isShowingSymptomsSubject = BehaviorRelay<Bool>(value: false)
     
-    // Service dependencies
     private let realmManager: RealmManager
     private let weatherService: WeatherService
     
@@ -54,18 +52,15 @@ class HomeViewModel: BaseViewModel {
         self.realmManager = realmManager
         self.weatherService = weatherService
         
-        // 현재 연도와 월 확실히 설정
         let calendar = Calendar.current
         let currentYear = calendar.component(.year, from: Date())
         let currentMonth = calendar.component(.month, from: Date())
         
-        // 명시적으로 초기값 설정
         self.yearSubject.accept(currentYear)
         self.monthSubject.accept(currentMonth)
         
         print("Initial year set to: \(currentYear), month: \(currentMonth)")
         
-        // 비동기로 데이터 로드 (UI 초기화 후)
         Task {
             await fetchData()
         }
@@ -87,7 +82,7 @@ class HomeViewModel: BaseViewModel {
             })
             .disposed(by: disposeBag)
         
-        // 토글 버튼 액션 - 즉시 상태 전환
+        // 토글 버튼 액션
         input.toggleViewTap
             .subscribe(onNext: { [weak self] in
                 guard let self = self else { return }
@@ -131,9 +126,8 @@ class HomeViewModel: BaseViewModel {
         return Output(
             currentYear: yearSubject
                 .map { String($0) }
-                .distinctUntilChanged() // 중복 이벤트 방지
+                .distinctUntilChanged()
                 .do(onNext: { year in
-                    print("Year updated: \(year)") // 디버깅용 로그
                 })
                 .asDriver(onErrorJustReturn: "\(Calendar.current.component(.year, from: Date()))"),
             currentMonth: monthSubject.asDriver(onErrorJustReturn: 1),
@@ -228,12 +222,9 @@ class HomeViewModel: BaseViewModel {
     }
     
     private func fetchSymptomRecords(year: Int, month: Int) {
-        // 메인 스레드에서 Realm 작업 실행
-        DispatchQueue.main.async {
-            // Realm에서 증상 기록 가져오기
-            let records = self.realmManager.getSymptomRecords(year: year, month: month)
-            
-            // 증상 기록으로 UI 업데이트
-        }
+        // Realm에서 증상 기록 가져오기
+        let records = realmManager.getSymptomRecords(year: year, month: month)
+        
+        // 증상 기록으로 UI 업데이트
     }
 }
