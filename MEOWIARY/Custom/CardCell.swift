@@ -445,28 +445,22 @@ final class CardCell: UICollectionViewCell {
         return button
     }
     
-    private func addTodayIndicator(to button: UIButton) {
-        // 현재 날짜 강조 표시
-        button.layer.borderWidth = 2
-        button.layer.borderColor = DesignSystem.Color.Tint.text.inUIColor().cgColor
-        
-        // 검정 바 추가
-        let indicatorHeight: CGFloat = 2
-        let indicatorWidth: CGFloat = button.frame.width * 0.6
-        
-        let indicator = UIView()
-        indicator.backgroundColor = DesignSystem.Color.Tint.text.inUIColor() // 검정색
-        
-        button.addSubview(indicator)
-        
-        // 검정 바 위치 (날짜 아래)
-        indicator.frame = CGRect(
-            x: (button.frame.width - indicatorWidth) / 2,
-            y: button.frame.height - indicatorHeight - 2, // 하단에서 약간 위
-            width: indicatorWidth,
-            height: indicatorHeight
-        )
-    }
+  private func addTodayIndicator(to button: UIButton) {
+      let indicatorHeight: CGFloat = 2
+      let indicatorWidth: CGFloat = button.frame.width * 0.6
+      
+      let indicator = UIView()
+      indicator.backgroundColor = DesignSystem.Color.Tint.text.inUIColor() // 검정색
+      
+      button.addSubview(indicator)
+      
+      indicator.frame = CGRect(
+          x: (button.frame.width - indicatorWidth) / 2,
+          y: button.frame.height - indicatorHeight - 2, // 하단에서 약간 위
+          width: indicatorWidth,
+          height: indicatorHeight
+      )
+  }
     
     private func addSymptomIndicator(to button: UIButton) {
         let isSmallScreen = UIScreen.main.bounds.height <= 667

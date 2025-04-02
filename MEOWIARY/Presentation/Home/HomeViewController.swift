@@ -314,6 +314,15 @@ final class HomeViewController: BaseViewController {
       })
       .disposed(by: disposeBag)
     
+    output.weatherInfo
+        .drive(onNext: { [weak self] weather in
+            if let weather = weather {
+                let temperature = Int(weather.temperature.rounded())
+                self?.navigationBarView.updateWeather(temperature: temperature, condition: weather.condition)
+            }
+        })
+        .disposed(by: disposeBag)
+    
     output.isShowingSymptoms
       .drive(cardCalendarView.rx.isShowingSymptoms)
       .disposed(by: disposeBag)
