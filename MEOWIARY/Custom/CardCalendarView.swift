@@ -16,6 +16,8 @@ final class CardCalendarView: BaseView {
   private var currentDay = Calendar.current.component(.day, from: Date())
   private var symptomsData: [Int: Bool] = [:]  // Dictionary to track days with symptoms
   private var pageWidth: CGFloat = 0
+  private var dayCardData: [Int: DayCard] = [:]
+  private let realmManager = RealmManager()
   
   public var isCalendarMode = false {
       didSet {
@@ -105,6 +107,19 @@ final class CardCalendarView: BaseView {
       self.updateMonth(month: currentMonth + 1)
     }
   }
+  
+  func updateData(year: Int, month: Int) {
+      dayCardData = realmManager.getDayCardsMapForMonth(year: year, month: month)
+      
+      // 캘린더 그리드 업데이트 (플립 상태일 때만)
+      if isCalendarMode {
+          // 현재 보이는 셀만 업데이트
+          if let cell = getCellForIndex(month - 1) {
+              // 수정: CardCell의 createCalendarGrid 호출
+              cell.createCalendarGrid(with: dayCardData)
+          }
+      }
+    }
   
   // 페이지 너비를 계산하는 메서드
   private func calculatePageWidth() {
@@ -251,30 +266,35 @@ final class CardCalendarView: BaseView {
   }
   
   func updateMonth(month: Int) {
-    // 월 레이블 업데이트
-    UIView.performWithoutAnimation {
-      monthLabel.text = "\(month)월"
-      monthLabel.setNeedsDisplay()
-      monthLabel.layoutIfNeeded()
-    }
-    
-    print("CardCalendarView - 월 레이블 업데이트: \(month)월")
-    
-    currentMonth = month
-    pageControl.currentPage = month - 1
-  }
+     // 월 레이블 업데이트
+     UIView.performWithoutAnimation {
+         monthLabel.text = "\(month)월"
+         monthLabel.setNeedsDisplay()
+         monthLabel.layoutIfNeeded()
+     }
+     
+     print("CardCalendarView - 월 레이블 업데이트: \(month)월")
+     
+     currentMonth = month
+     pageControl.currentPage = month - 1
+     
+     // 데이터 업데이트
+     updateData(year: currentYear, month: currentMonth)
+   }
   
   func updateYear(year: String) {
     print("CardCalendarView - 연도 업데이트: \(year)")
     
     if let yearInt = Int(year) {
-      currentYear = yearInt
-      cardCollectionView.reloadData()
-      
-      // 년도 변경 시 현재 월 위치로 다시 스크롤
-      scrollToMonth(month: currentMonth, animated: false)
+        currentYear = yearInt
+        updateData(year: currentYear, month: currentMonth)
+        cardCollectionView.reloadData()
+        
+        // 년도 변경 시 현재 월 위치로 다시 스크롤
+        scrollToMonth(month: currentMonth, animated: false)
     }
   }
+
   
   // 뷰 크기가 변경될 때 호출되는 메서드
   override func layoutSubviews() {
@@ -310,7 +330,11 @@ extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate
       
       // 셀 구성
       let month = indexPath.item + 1
-      cell.configure(forMonth: month, year: currentYear)
+      
+      // 현재 월의 데이터 가져오기
+      let monthData = realmManager.getDayCardsMapForMonth(year: currentYear, month: month)
+      
+      cell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
       
       // 셀에 고유 태그 설정 (월 기준)
       cellPrepared(cell: cell, forMonth: month)

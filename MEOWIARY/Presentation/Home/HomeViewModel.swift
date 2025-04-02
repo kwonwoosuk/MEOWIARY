@@ -208,6 +208,7 @@ class HomeViewModel: BaseViewModel {
     
     // 증상 기록 가져오기
     fetchSymptomRecords(year: year, month: month)
+    fetchDayCardData(year: year, month: month)
   }
   
   private func fetchWeatherData() async {
@@ -224,6 +225,14 @@ class HomeViewModel: BaseViewModel {
       // 날씨 데이터 가져오기 실패
       print("Error fetching weather: \(error)")
     }
+  }
+  
+  private func fetchDayCardData(year: Int, month: Int) {
+      // Realm에서 해당 월의 DayCard 가져오기
+      let dayCards = realmManager.getDayCardsMapForMonth(year: year, month: month)
+      
+      // 데이터 처리 및 UI 업데이트를 위한 내용 추가 가능
+      print("Fetched \(dayCards.count) DayCards for \(year)-\(month)")
   }
   
   private func fetchSymptomRecords(year: Int, month: Int) {

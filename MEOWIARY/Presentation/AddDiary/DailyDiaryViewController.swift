@@ -110,7 +110,7 @@ final class DailyDiaryViewController: BaseViewController {
         }
         
         dateLabel.snp.makeConstraints { make in
-            make.top.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
+            make.top.equalToSuperview()
             make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
             make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
         }
