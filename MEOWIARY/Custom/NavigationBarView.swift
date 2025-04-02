@@ -100,16 +100,8 @@ final class NavigationBarView: BaseView {
   // MARK: - Helper Methods
   private func updateDateLabels() {
     let date = Date()
-    let dateFormatter = DateFormatter()
-    
-    // Format for date label
-    dateFormatter.locale = Locale(identifier: "ko_KR")
-    dateFormatter.dateFormat = "yyyy년 M월 d일"
-    dateLabel.text = dateFormatter.string(from: date)
-    
-    // Format for day of week
-    dateFormatter.dateFormat = "EEEE"
-    dayOfWeekLabel.text = dateFormatter.string(from: date)
+    dateLabel.text = UILabel.createDateLabel(for: date).text
+    dayOfWeekLabel.text = UILabel.createDayOfWeekLabel(for: date).text
   }
   
   // MARK: - Public Methods

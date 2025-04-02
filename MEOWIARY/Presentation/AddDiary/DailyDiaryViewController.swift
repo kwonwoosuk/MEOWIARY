@@ -27,33 +27,8 @@ final class DailyDiaryViewController: BaseViewController {
     
     private let contentView = UIView()
     
-    private let dateLabel: UILabel = {
-        let label = UILabel()
-        label.textColor = DesignSystem.Color.Tint.text.inUIColor()
-        label.font = DesignSystem.Font.Weight.bold(size: DesignSystem.Font.Size.large)
-        
-        // 오늘 날짜 표시
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy년 M월 d일"
-        dateFormatter.locale = Locale(identifier: "ko_KR")
-        label.text = dateFormatter.string(from: Date())
-        
-        return label
-    }()
-    
-    private let dayOfWeekLabel: UILabel = {
-        let label = UILabel()
-        label.textColor = DesignSystem.Color.Tint.darkGray.inUIColor()
-        label.font = DesignSystem.Font.Weight.regular(size: DesignSystem.Font.Size.medium)
-        
-        // 요일 표시
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "EEEE"
-        dateFormatter.locale = Locale(identifier: "ko_KR")
-        label.text = dateFormatter.string(from: Date())
-        
-        return label
-    }()
+  private let dateLabel = UILabel.createDateLabel()
+  private let dayOfWeekLabel = UILabel.createDayOfWeekLabel()
     
     private let photoButton: UIButton = {
         let button = UIButton(type: .system)
