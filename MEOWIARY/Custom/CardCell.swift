@@ -121,23 +121,21 @@ final class CardCell: UICollectionViewCell {
         setupUI()
     }
     
-    override func prepareForReuse() {
-        super.prepareForReuse()
-        backgroundImageView.image = nil
-        
-        // 재사용 시 플립 상태 초기화
-        if isFlipped {
-            flipToCard(animated: false)
-        }
-        
-        // 증상 데이터 초기화
-        symptomsData.removeAll()
-        
-        // 캘린더 그리드 초기화
-        for subview in calendarGridView.subviews {
-            subview.removeFromSuperview()
-        }
-    }
+  override func prepareForReuse() {
+      super.prepareForReuse()
+      backgroundImageView.image = nil
+      
+      // 플립 상태는 초기화하지 않고 유지
+      // isFlipped 상태는 CardCalendarView의 isCalendarMode에 따라 설정됨
+      
+      // 증상 데이터 초기화
+      symptomsData.removeAll()
+      
+      // 캘린더 그리드 초기화
+      for subview in calendarGridView.subviews {
+          subview.removeFromSuperview()
+      }
+  }
     
     // MARK: - Setup
     private func setupUI() {
@@ -248,42 +246,47 @@ final class CardCell: UICollectionViewCell {
     }
     
     // MARK: - Configuration
-    func configure(forMonth month: Int, year: Int = Calendar.current.component(.year, from: Date())) {
-        // 확실히 레이아웃 갱신
-        self.layoutIfNeeded()
-        
-        // 현재 년도와 월 저장
-        self.year = year
-        self.month = month
-        
-        // Set month name (1-based index)
-        let monthNames = ["1월", "2월", "3월", "4월", "5월", "6월",
-                          "7월", "8월", "9월", "10월", "11월", "12월"]
-        
-        // Month label 텍스트 설정 및 강제 갱신
-        UIView.performWithoutAnimation {
-            monthLabel.text = monthNames[month - 1]
-            calendarMonthLabel.text = monthNames[month - 1]
-            monthLabel.layoutIfNeeded()
-            calendarMonthLabel.layoutIfNeeded()
-        }
-        
-        // Set page info
-        let totalDaysInMonth = daysInMonth(month: month, year: year)
-        pageInfoLabel.text = "1 / \(totalDaysInMonth)"
-        
-        // 월별 고정 색상 설정
-        setMonthColor(month: month)
-        
-        // 디버그 로그
-        print("월 셀 구성 완료: \(year)년 \(month)월, 텍스트: \(monthLabel.text ?? "nil")")
-        
-        // 배경 이미지 로드
-        loadMonthBackgroundImage(month: month)
-        
-        // 캘린더 그리드 업데이트
-        createCalendarGrid()
-    }
+  func configure(forMonth month: Int, year: Int = Calendar.current.component(.year, from: Date())) {
+      // 셀 태그 설정 (검색용)
+      self.tag = month
+      
+      // 확실히 레이아웃 갱신
+      self.layoutIfNeeded()
+      
+      // 현재 년도와 월 저장
+      self.year = year
+      self.month = month
+      
+      // Set month name (1-based index)
+      let monthNames = ["1월", "2월", "3월", "4월", "5월", "6월",
+                        "7월", "8월", "9월", "10월", "11월", "12월"]
+      
+      // Month label 텍스트 설정 및 강제 갱신
+      UIView.performWithoutAnimation {
+          monthLabel.text = monthNames[month - 1]
+          calendarMonthLabel.text = monthNames[month - 1]
+          monthLabel.layoutIfNeeded()
+          calendarMonthLabel.layoutIfNeeded()
+      }
+      
+      // Set page info
+      let totalDaysInMonth = daysInMonth(month: month, year: year)
+      pageInfoLabel.text = "1 / \(totalDaysInMonth)"
+      
+      // 월별 고정 색상 설정
+      setMonthColor(month: month)
+      
+      // 디버그 로그
+      print("월 셀 구성 완료: \(year)년 \(month)월, 태그: \(self.tag), 상태: \(isFlipped ? "캘린더" : "카드")")
+      
+      // 배경 이미지 로드
+      loadMonthBackgroundImage(month: month)
+      
+      // 캘린더 그리드 업데이트 (플립 상태인 경우만)
+      if isFlipped {
+          createCalendarGrid()
+      }
+  }
     
     // 월별로 다른 색상 적용
     private func setMonthColor(month: Int) {
@@ -312,7 +315,7 @@ final class CardCell: UICollectionViewCell {
     
     // MARK: - Calendar UI Creation
     private func createCalendarUI() {
-        // 기존 day 라벨 제거
+        
         daysStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         
         // Add day labels (일, 월, 화, 수, 목, 금, 토)
@@ -488,48 +491,77 @@ final class CardCell: UICollectionViewCell {
     }
     
     // MARK: - Flipping Methods
-    func flipToCalendar(animated: Bool = true) {
-        guard !isFlipped else { return }
-        
-        if animated {
-            UIView.transition(with: self.contentView, duration: 0.5, options: .transitionFlipFromLeft, animations: {
-                self.containerView.isHidden = true
-                self.calendarContainerView.isHidden = false
-            }, completion: { _ in
-                self.isFlipped = true
-                self.createCalendarGrid() // 그리드 다시 생성
-            })
-        } else {
-            containerView.isHidden = true
-            calendarContainerView.isHidden = false
-            isFlipped = true
-            createCalendarGrid()
-        }
-        
-        // 디버그 로그
-        print("CardCell: \(month)월 카드를 캘린더로 플립")
-    }
+  func flipToCalendar(animated: Bool = true) {
+      // 이미 뒤집힌 상태면 그리드만 업데이트하고 종료
+      if isFlipped {
+          createCalendarGrid()
+          return
+      }
+      
+      if animated {
+          // 더 뚜렷한 애니메이션 효과를 위해 속성 조정
+          UIView.transition(
+              with: self.contentView,
+              duration: 0.6,  // 애니메이션 시간 약간 늘림
+              options: [.transitionFlipFromLeft, .allowUserInteraction],  // 사용자 상호작용 허용
+              animations: {
+                  self.containerView.isHidden = true
+                  self.calendarContainerView.isHidden = false
+              },
+              completion: { _ in
+                  self.isFlipped = true
+                  self.createCalendarGrid() // 그리드 다시 생성
+                  print("CardCell: \(self.month)월 카드 뒤집기 애니메이션 완료")
+              }
+          )
+      } else {
+          // 애니메이션 없이 즉시 상태 변경
+          containerView.isHidden = true
+          calendarContainerView.isHidden = false
+          isFlipped = true
+          createCalendarGrid()
+      }
+      
+      // 디버그 로그
+      if animated {
+          print("CardCell: \(month)월 카드를 캘린더로 플립 시작 (태그: \(self.tag))")
+      }
+  }
 
-    func flipToCard(animated: Bool = true) {
-        guard isFlipped else { return }
-        
-        if animated {
-            UIView.transition(with: self.contentView, duration: 0.5, options: .transitionFlipFromRight, animations: {
-                self.calendarContainerView.isHidden = true
-                self.containerView.isHidden = false
-            }, completion: { _ in
-                self.isFlipped = false
-            })
-        } else {
-            calendarContainerView.isHidden = true
-            containerView.isHidden = false
-            isFlipped = false
-        }
-        
-        // 디버그 로그
-        print("CardCell: \(month)월 카드를 되돌림")
-    }
-    
+  // 뒤로 플립 애니메이션 개선
+  func flipToCard(animated: Bool = true) {
+      // 이미 카드 상태면 무시
+      if !isFlipped {
+          return
+      }
+      
+      if animated {
+          // 더 뚜렷한 애니메이션 효과를 위해 속성 조정
+          UIView.transition(
+              with: self.contentView,
+              duration: 0.6,  // 애니메이션 시간 약간 늘림
+              options: [.transitionFlipFromRight, .allowUserInteraction],  // 사용자 상호작용 허용
+              animations: {
+                  self.calendarContainerView.isHidden = true
+                  self.containerView.isHidden = false
+              },
+              completion: { _ in
+                  self.isFlipped = false
+                  print("CardCell: \(self.month)월 카드 되돌리기 애니메이션 완료")
+              }
+          )
+      } else {
+          // 애니메이션 없이 즉시 상태 변경
+          calendarContainerView.isHidden = true
+          containerView.isHidden = false
+          isFlipped = false
+      }
+      
+      // 디버그 로그
+      if animated {
+          print("CardCell: \(month)월 카드를 원래대로 되돌리기 시작 (태그: \(self.tag))")
+      }
+  }
     // MARK: - Helper Methods
     private func daysInMonth(month: Int, year: Int) -> Int {
         let calendar = Calendar.current

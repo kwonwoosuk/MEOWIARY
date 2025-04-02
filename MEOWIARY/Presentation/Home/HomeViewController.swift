@@ -15,7 +15,7 @@ final class HomeViewController: BaseViewController {
   // MARK: - Properties
   private let viewModel = HomeViewModel()
   private let disposeBag = DisposeBag()
-  
+  private var isFirstLoad = true
   // MARK: - UI Components
   private let navigationBarView = NavigationBarView()
   
@@ -98,21 +98,38 @@ final class HomeViewController: BaseViewController {
   // MARK: - Lifecycle
   override func viewDidLoad() {
     super.viewDidLoad()
+    isFirstLoad = true
+   
   }
 
   override func viewDidAppear(_ animated: Bool) {
-    super.viewDidAppear(animated)
-    
-    DispatchQueue.main.async { [weak self] in
-      guard let self = self else { return }
-      self.cardCalendarView.forceUpdateLayout()
+      super.viewDidAppear(animated)
       
-      if self.yearLabel.text?.isEmpty ?? true {
-        self.yearLabel.text = String(Calendar.current.component(.year, from: Date()))
-        self.yearLabel.layoutIfNeeded()
-        print("연도 레이블 보정: \(self.yearLabel.text ?? "nil")")
+      DispatchQueue.main.async { [weak self] in
+          guard let self = self else { return }
+          
+          // 첫 로딩인 경우 특별 처리
+          if self.isFirstLoad {
+              self.cardCalendarView.forceUpdateLayout()
+              
+              if self.yearLabel.text?.isEmpty ?? true {
+                  self.yearLabel.text = String(Calendar.current.component(.year, from: Date()))
+                  self.yearLabel.layoutIfNeeded()
+                  print("연도 레이블 보정: \(self.yearLabel.text ?? "nil")")
+              }
+              
+              // 캘린더 모드 확인 및 버튼 상태 동기화
+              if self.cardCalendarView.isCalendarMode {
+                  self.calendarButton.isHidden = true
+                  self.backButton.isHidden = false
+              } else {
+                  self.calendarButton.isHidden = false
+                  self.backButton.isHidden = true
+              }
+              
+              self.isFirstLoad = false
+          }
       }
-    }
   }
   
   // MARK: - UI Setup
@@ -311,35 +328,36 @@ final class HomeViewController: BaseViewController {
   }
   
   private func flipCardToCalendar() {
-    // 월 선택이 정확하도록 카드뷰에 현재 월 정보 전달
-    let currentMonth = Calendar.current.component(.month, from: Date())
-    cardCalendarView.updateMonth(month: currentMonth)
-    
-    // 카드 뒤집기 실행
-    cardCalendarView.flipToCalendar()
-    
-    // 애니메이션 없이 버튼 상태 변경
-    UIView.performWithoutAnimation {
-      calendarButton.isHidden = true
-      backButton.isHidden = false
-      self.view.layoutIfNeeded()
-    }
-    
-    print("HomeViewController: 카드에서 캘린더로 플립")
+      // 월 선택이 정확하도록 카드뷰에 현재 월 정보 전달
+      let currentMonth = Calendar.current.component(.month, from: Date())
+      cardCalendarView.updateMonth(month: currentMonth)
+      
+      // 버튼 먼저 숨기기
+      UIView.performWithoutAnimation {
+          calendarButton.isHidden = true
+          backButton.isHidden = false
+          self.view.layoutIfNeeded()
+      }
+      
+      // 모든 카드 뒤집기 실행 (개선된 메서드)
+      cardCalendarView.flipAllToCalendar()
+      
+      print("HomeViewController: 모든 카드를 캘린더로 플립")
   }
-  
+
+  // flipCalendarToCard 메서드 강화 - 모든 셀에 애니메이션 적용
   private func flipCalendarToCard() {
-    
-    cardCalendarView.flipToCard()
-    
-    UIView.performWithoutAnimation {
-      calendarButton.isHidden = false
-      backButton.isHidden = true
-      self.view.layoutIfNeeded()
-    }
-    
-    
-    print("HomeViewController: 캘린더에서 카드로 플립")
+      // 버튼 먼저 변경
+      UIView.performWithoutAnimation {
+          calendarButton.isHidden = false
+          backButton.isHidden = true
+          self.view.layoutIfNeeded()
+      }
+      
+      // 모든 카드 되돌리기 실행 (개선된 메서드)
+      cardCalendarView.flipAllToCard()
+      
+      print("HomeViewController: 모든 카드를 원래대로 돌림")
   }
   
   
