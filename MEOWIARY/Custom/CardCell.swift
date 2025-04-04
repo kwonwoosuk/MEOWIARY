@@ -565,8 +565,8 @@ final class CardCell: UICollectionViewCell {
       // 더 뚜렷한 애니메이션 효과를 위해 속성 조정
       UIView.transition(
         with: self.contentView,
-        duration: 0.6,  // 애니메이션 시간 약간 늘림
-        options: [.transitionFlipFromLeft, .allowUserInteraction],  // 사용자 상호작용 허용
+        duration: 0.4,
+        options: [.transitionFlipFromLeft, .allowUserInteraction],
         animations: {
           self.containerView.isHidden = true
           self.calendarContainerView.isHidden = false
@@ -601,7 +601,7 @@ final class CardCell: UICollectionViewCell {
     if animated {
       UIView.transition(
         with: self.contentView,
-        duration: 0.6,
+        duration: 0.4,
         options: [.transitionFlipFromRight, .allowUserInteraction],
         animations: {
           self.calendarContainerView.isHidden = true

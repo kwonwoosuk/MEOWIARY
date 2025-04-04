@@ -50,29 +50,15 @@ final class CardCalendarView: BaseView {
     return label
   }()
   
-  let pageControl: UIPageControl = {
-    let pageControl = UIPageControl()
-    pageControl.currentPageIndicatorTintColor = .white
-    pageControl.pageIndicatorTintColor = UIColor.white.withAlphaComponent(0.5)
-    pageControl.numberOfPages = 12
-    return pageControl
-  }()
   
   // MARK: - Configuration
   override func configureHierarchy() {
     addSubview(cardCollectionView)
-    addSubview(pageControl)
   }
   
   override func configureLayout() {
     cardCollectionView.snp.makeConstraints { make in
       make.edges.equalToSuperview()
-    }
-    
-    pageControl.snp.makeConstraints { make in
-      make.bottom.equalToSuperview().offset(-DesignSystem.Layout.smallMargin)
-      make.centerX.equalToSuperview()
-      make.height.equalTo(20)
     }
   }
   
@@ -100,7 +86,7 @@ final class CardCalendarView: BaseView {
       
       if currentMonth >= 0 && currentMonth < 12 {
         self.scrollToMonth(month: currentMonth + 1, animated: false)
-        self.pageControl.currentPage = currentMonth
+        
       }
       
       // 현재 월이 화면에 표시되도록
@@ -188,7 +174,7 @@ final class CardCalendarView: BaseView {
     let contentOffsetX = cardCollectionView.contentOffset.x
     let currentIndex = Int(contentOffsetX / pageWidth)
     
-    // 인덱스 범위 검증
+    
     return min(max(currentIndex, 0), 11) // 0-11 범위 (1월-12월)
   }
   
@@ -225,10 +211,7 @@ final class CardCalendarView: BaseView {
       // 이제 모드를 변경
       isCalendarMode = true
       
-      // 페이지 컨트롤 숨기기
-      UIView.animate(withDuration: 0.3) {
-          self.pageControl.alpha = 0
-      }
+     
       
       print("CardCalendarView: 모든 카드를 캘린더로 플립 (모든 셀에 애니메이션 적용)")
   }
@@ -249,10 +232,7 @@ final class CardCalendarView: BaseView {
       // 이제 모드를 변경
       isCalendarMode = false
       
-      // 페이지 컨트롤 다시 표시
-      UIView.animate(withDuration: 0.3) {
-          self.pageControl.alpha = 1
-      }
+    
       
       print("CardCalendarView: 모든 카드를 원래 상태로 되돌림 (모든 셀에 애니메이션 적용)")
   }
@@ -275,8 +255,6 @@ final class CardCalendarView: BaseView {
      
      print("CardCalendarView - 월 레이블 업데이트: \(month)월")
      
-     currentMonth = month
-     pageControl.currentPage = month - 1
      
      // 데이터 업데이트
      updateData(year: currentYear, month: currentMonth)
@@ -376,8 +354,6 @@ extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate
     let currentIndex = getCurrentCardIndex()
     let month = currentIndex + 1
     
-    // 페이지 컨트롤 및 월 업데이트
-    pageControl.currentPage = currentIndex
     updateMonth(month: month)
     
     // 디버깅 로그

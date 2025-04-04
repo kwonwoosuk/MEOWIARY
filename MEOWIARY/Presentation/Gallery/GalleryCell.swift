@@ -131,20 +131,24 @@ final class GalleryCell: UICollectionViewCell {
   
   // MARK: - Configuration
   func configure(with imageData: GalleryViewModel.ImageData, imageManager: ImageManager) {
-    // 썸네일 이미지 로드
-    if let image = imageManager.loadThumbnailImage(from: imageData.thumbnailPath) {
-      imageView.image = image
+      // 썸네일 이미지 로드
+      if let image = imageManager.loadThumbnailImage(from: imageData.thumbnailPath) {
+        imageView.image = image
+      } else {
+        // 기본 이미지 설정
+        imageView.image = UIImage(systemName: "photo")
+        print("썸네일 로드 실패: \(imageData.thumbnailPath)")
+      }
+      
+      // 즐겨찾기 상태 반영
+      let heartImageName = imageData.isFavorite ? "heart.fill" : "heart"
+      favoriteButton.setImage(UIImage(systemName: heartImageName), for: .normal)
+      
+      // 날짜 포맷
+      let dateFormatter = DateFormatter()
+      dateFormatter.dateFormat = "yyyy.MM.dd"
+      dateLabel.text = dateFormatter.string(from: imageData.createdAt)
     }
-    
-    // 즐겨찾기 상태 반영
-    let heartImageName = imageData.isFavorite ? "heart.fill" : "heart"
-    favoriteButton.setImage(UIImage(systemName: heartImageName), for: .normal)
-    
-    // 날짜 포맷
-    let dateFormatter = DateFormatter()
-    dateFormatter.dateFormat = "yyyy.MM.dd"
-    dateLabel.text = dateFormatter.string(from: imageData.createdAt)
-  }
   
   // MARK: - Actions
   @objc private func handleTouchDown(_ gesture: UILongPressGestureRecognizer) {

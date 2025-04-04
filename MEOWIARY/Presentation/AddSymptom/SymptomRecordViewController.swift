@@ -14,6 +14,7 @@ final class SymptomRecordViewController: BaseViewController {
     
     // MARK: - Properties
     private let disposeBag = DisposeBag()
+//  private let ViewMdoel = SymptomViewModel()
     
     // MARK: - UI Components
     private let navigationBarView = CustomNavigationBarView()
@@ -54,9 +55,11 @@ final class SymptomRecordViewController: BaseViewController {
         let slider = UISlider()
         slider.minimumValue = 1
         slider.maximumValue = 5
-        slider.value = 3
+        slider.value = 1
         slider.minimumTrackTintColor = DesignSystem.Color.Tint.main.inUIColor()
-        slider.thumbTintColor = DesignSystem.Color.Tint.action.inUIColor()
+      
+      
+      slider.thumbTintColor = DesignSystem.Color.Status.negative1.inUIColor()
         return slider
     }()
     
@@ -64,7 +67,7 @@ final class SymptomRecordViewController: BaseViewController {
         let label = UILabel()
         label.textColor = DesignSystem.Color.Tint.darkGray.inUIColor()
         label.font = DesignSystem.Font.Weight.bold(size: DesignSystem.Font.Size.medium)
-        label.text = "3 / 5"
+        label.text = "1 / 5"
         label.textAlignment = .right
         return label
     }()
@@ -231,6 +234,21 @@ final class SymptomRecordViewController: BaseViewController {
             .map { Int($0.rounded()) }
             .subscribe(onNext: { [weak self] value in
                 self?.severityValueLabel.text = "\(value) / 5"
+              switch value {
+                      case 1:
+                          self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative1.inUIColor()
+                      case 2:
+                          self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative2.inUIColor()
+                      case 3:
+                          self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative3.inUIColor()
+                      case 4:
+                          self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative4.inUIColor()
+                      case 5:
+                          self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative5.inUIColor()
+                      default:
+                          self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative1.inUIColor()
+                      }
+            
             })
             .disposed(by: disposeBag)
         

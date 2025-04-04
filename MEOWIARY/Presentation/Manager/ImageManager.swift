@@ -5,7 +5,6 @@
 //  Created by 권우석 on 4/3/25.
 //
 
-
 import UIKit
 import RxSwift
 
@@ -44,28 +43,36 @@ class ImageManager {
         return paths[0].appendingPathComponent("thumbnail_images")
     }
     
+    // 파일 존재 여부 확인 메서드 추가
+    func checkImageFileExists(path: String) -> Bool {
+        let originalURL = getOriginalImagesDirectory().appendingPathComponent(path)
+        return FileManager.default.fileExists(atPath: originalURL.path)
+    }
+    
     // 이미지 저장 (원본, 썸네일 생성 후 저장)
     func saveImage(_ image: UIImage) -> Observable<ImageRecord> {
         return Observable.create { observer in
             let imageID = UUID().uuidString
-            let originalImagePath = self.getOriginalImagesDirectory().appendingPathComponent("\(imageID).jpg")
-            let thumbnailImagePath = self.getThumbnailImagesDirectory().appendingPathComponent("\(imageID).jpg")
+            let originalImagePath = "\(imageID).jpg"
+            let thumbnailImagePath = "\(imageID).jpg"
+            
+            let originalFileURL = self.getOriginalImagesDirectory().appendingPathComponent(originalImagePath)
+            let thumbnailFileURL = self.getThumbnailImagesDirectory().appendingPathComponent(thumbnailImagePath)
+            
+            print("이미지 저장 경로: \(originalFileURL.path)")
             
             // 원본 이미지 저장
             if let originalData = image.jpegData(compressionQuality: 0.9) {
                 do {
-                    try originalData.write(to: originalImagePath)
+                    try originalData.write(to: originalFileURL)
                     
                     // 썸네일 생성 및 저장
                     if let thumbnail = self.resizeImage(image, targetSize: CGSize(width: 200, height: 200)) {
                         if let thumbnailData = thumbnail.jpegData(compressionQuality: 0.7) {
-                            try thumbnailData.write(to: thumbnailImagePath)
+                            try thumbnailData.write(to: thumbnailFileURL)
                             
                             // 이미지 레코드 생성
-                            let imageRecord = ImageRecord(
-                                originalImagePath: originalImagePath.lastPathComponent,
-                                thumbnailImagePath: thumbnailImagePath.lastPathComponent
-                            )
+                            let imageRecord = ImageRecord(originalImagePath: originalImagePath, thumbnailImagePath: thumbnailImagePath)
                             
                             observer.onNext(imageRecord)
                             observer.onCompleted()
@@ -76,6 +83,7 @@ class ImageManager {
                         observer.onError(NSError(domain: "com.meowiary.imagemanager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create thumbnail"]))
                     }
                 } catch {
+                    print("이미지 저장 실패: \(error.localizedDescription)")
                     observer.onError(error)
                 }
             } else {
@@ -91,9 +99,12 @@ class ImageManager {
         guard let imagePath = imagePath else { return nil }
         let fileURL = getThumbnailImagesDirectory().appendingPathComponent(imagePath)
         
+        print("썸네일 로드 시도: \(fileURL.path)")
+        
         if let data = try? Data(contentsOf: fileURL) {
             return UIImage(data: data)
         }
+        print("썸네일 로드 실패: 파일이 없음")
         return UIImage(systemName: "photo")
     }
     
@@ -102,9 +113,12 @@ class ImageManager {
         guard let imagePath = imagePath else { return nil }
         let fileURL = getOriginalImagesDirectory().appendingPathComponent(imagePath)
         
+        print("원본 이미지 로드 시도: \(fileURL.path)")
+        
         if let data = try? Data(contentsOf: fileURL) {
             return UIImage(data: data)
         }
+        print("원본 이미지 로드 실패: 파일이 없음")
         return nil
     }
     

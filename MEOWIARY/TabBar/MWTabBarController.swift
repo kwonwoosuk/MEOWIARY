@@ -27,6 +27,10 @@ final class MWTabBarController: UITabBarController {
     configureTabBarController()
     setupTabBarAppearance()
     tabBar.delegate = self
+    createMockDataIfNeeded()
+    DispatchQueue.main.async { [weak self] in
+            self?.setupCenterButtonMask()
+        }
   }
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
@@ -52,6 +56,38 @@ final class MWTabBarController: UITabBarController {
     }
   }
   
+  private func setupCenterButtonMask() {
+      // 탭바 아이템 개수와 각 아이템 영역 너비 계산
+      let tabCount = tabBar.items?.count ?? 0
+      guard tabCount > 0 else { return }
+      
+      let tabWidth = tabBar.frame.width / CGFloat(tabCount)
+      let centerTabIndex = 1 // 중앙 탭 인덱스
+      
+      // 중앙 탭 영역 위에 투명한 뷰 추가
+      let maskView = UIView()
+      maskView.backgroundColor = .clear
+      maskView.frame = CGRect(x: tabWidth * CGFloat(centerTabIndex),
+                            y: 0,
+                            width: tabWidth,
+                            height: tabBar.frame.height)
+      
+      // 사용자 상호작용 가로채기
+      maskView.isUserInteractionEnabled = true
+      
+      // 탭 제스처 추가
+      let tapGesture = UITapGestureRecognizer(target: self, action: #selector(centerTabAreaTapped))
+      maskView.addGestureRecognizer(tapGesture)
+      
+      tabBar.addSubview(maskView)
+      tabBar.bringSubviewToFront(maskView)
+  }
+
+  @objc private func centerTabAreaTapped() {
+      // 중앙 탭 영역이 탭되면 centerButtonTapped 메서드 호출
+      centerButtonTapped()
+  }
+  
   // MARK: - Configuration
   private func configureTabBarController() {
     // 홈 탭
@@ -64,9 +100,10 @@ final class MWTabBarController: UITabBarController {
     addTab.tabBarItem.image = nil  // 시스템 이미지 대신 커스텀 이미지를 적용할 것임
     addTab.tabBarItem.title = ""
     
+    
     // 이미지 갤러리 탭
     let galleryTab = GalleryViewController()
-    galleryTab.tabBarItem.image = DesignSystem.Icon.Navigation.chart.toUIImage()
+    galleryTab.tabBarItem.image = DesignSystem.Icon.Navigation.archive.toUIImage()
     galleryTab.tabBarItem.title = "모아보기"
     
     // 네비게이션 컨트롤러로 래핑
@@ -254,6 +291,20 @@ final class MWTabBarController: UITabBarController {
   
   
 }
+private func createMockDataIfNeeded() {
+    // UserDefaults에서 이미 데이터가 생성되었는지 확인
+    let defaults = UserDefaults.standard
+    let mockDataCreated = defaults.bool(forKey: "mockDataCreated")
+    
+    if !mockDataCreated {
+        let realmManager = RealmManager()
+        realmManager.createMockData()
+        
+        // 데이터 생성 완료 표시
+        defaults.set(true, forKey: "mockDataCreated")
+        defaults.synchronize()
+    }
+}
 
 // MARK: - UITabBarControllerDelegate
 extension MWTabBarController: UITabBarControllerDelegate {
@@ -264,6 +315,14 @@ extension MWTabBarController: UITabBarControllerDelegate {
       presentDiaryOptions()
       return false // 실제 탭 선택은 방지
     }
+    
+    if viewController == tabBarController.viewControllers?[2] {
+            // 디버깅용: 매번 테스트 데이터 새로 생성 (선택적)
+            // UserDefaults.standard.set(false, forKey: "mockDataCreated")
+            
+            // 테스트 데이터 생성
+            createMockDataIfNeeded()
+        }
     return true
   }
 }

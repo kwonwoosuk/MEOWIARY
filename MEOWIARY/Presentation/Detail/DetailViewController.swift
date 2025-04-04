@@ -17,7 +17,7 @@ final class DetailViewController: BaseViewController {
     private let disposeBag = DisposeBag()
     private let imageData: GalleryViewModel.ImageData
     private let imageManager: ImageManager
-    
+    private let realmManager = RealmManager()
     // MARK: - UI Components
     private let navigationBarView = CustomNavigationBarView()
     
@@ -70,6 +70,7 @@ final class DetailViewController: BaseViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+      print(realmManager.realm.configuration.fileURL)
     }
     
     // MARK: - UI Setup
@@ -185,7 +186,7 @@ final class DetailViewController: BaseViewController {
     // MARK: - Helper Methods
     private func updateFavoriteButton() {
         // Realm에서 최신 상태 확인
-        let realmManager = RealmManager()
+        
         if let imageRecord = realmManager.realm.object(ofType: ImageRecord.self, forPrimaryKey: imageData.id) {
             let heartImageName = imageRecord.isFavorite ? "heart.fill" : "heart"
             favoriteButton.setImage(UIImage(systemName: heartImageName), for: .normal)
