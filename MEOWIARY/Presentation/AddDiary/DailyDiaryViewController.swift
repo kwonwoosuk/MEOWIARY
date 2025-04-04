@@ -447,7 +447,7 @@ final class DailyDiaryViewController: BaseViewController {
   
   private func presentPhotoLibrary() {
     var configuration = PHPickerConfiguration()
-    configuration.selectionLimit = 3
+    configuration.selectionLimit = 1
     configuration.filter = .images
     
     let picker = PHPickerViewController(configuration: configuration)
@@ -540,15 +540,16 @@ extension DailyDiaryViewController: UITextViewDelegate {
 // MARK: - UIImagePickerControllerDelegate
 extension DailyDiaryViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
   func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-      if let image = info[.originalImage] as? UIImage {
-          selectedImage = image
-          selectedImageRelay.accept(image)
-          
-          // UI 업데이트 - 이미지 선택 표시
-          photoButton.setImage(nil, for: .normal)
-          photoButton.setBackgroundImage(image, for: .normal)
-          photoButton.contentMode = .scaleAspectFill
-      }
+    if let image = info[.originalImage] as? UIImage {
+      selectedImage = image
+      selectedImageRelay.accept(image)
+      
+      selectedImageRelay.accept(image)
+      photoImageView.image = image
+      photoImageView.isHidden = false
+      removePhotoButton.isHidden = false
+      photoButton.isHidden = true
+    }
       
       dismiss(animated: true)
   }
@@ -580,12 +581,13 @@ extension DailyDiaryViewController: PHPickerViewControllerDelegate {
   }
   
   private func setSelectedImage(_ image: UIImage) {
-    selectedImage = image
-    photoImageView.image = image
-    photoImageView.isHidden = false
-    removePhotoButton.isHidden = false
-    photoButton.isHidden = true
-    photoButtonsStackView.isHidden = true
+      selectedImage = image
+      selectedImageRelay.accept(image)
+      photoImageView.image = image
+      photoImageView.isHidden = false
+      removePhotoButton.isHidden = false
+      photoButton.isHidden = true
+      photoButtonsStackView.isHidden = true
   }
 }
 

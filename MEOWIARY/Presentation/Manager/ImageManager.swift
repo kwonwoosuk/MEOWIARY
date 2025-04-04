@@ -24,6 +24,7 @@ class ImageManager {
             if !fileManager.fileExists(atPath: path.path) {
                 do {
                     try fileManager.createDirectory(at: path, withIntermediateDirectories: true)
+                    print("디렉토리 생성 성공: \(path.path)")
                 } catch {
                     print("Failed to create directory: \(error)")
                 }
@@ -43,7 +44,7 @@ class ImageManager {
         return paths[0].appendingPathComponent("thumbnail_images")
     }
     
-    // 파일 존재 여부 확인 메서드 추가
+    // 파일 존재 여부 확인 메서드
     func checkImageFileExists(path: String) -> Bool {
         let originalURL = getOriginalImagesDirectory().appendingPathComponent(path)
         return FileManager.default.fileExists(atPath: originalURL.path)
@@ -53,23 +54,31 @@ class ImageManager {
     func saveImage(_ image: UIImage) -> Observable<ImageRecord> {
         return Observable.create { observer in
             let imageID = UUID().uuidString
-            let originalImagePath = "\(imageID).jpg"
-            let thumbnailImagePath = "\(imageID).jpg"
+            print("이미지 저장 시작 - 이미지 ID: \(imageID), 크기: \(image.size), 스케일: \(image.scale)")
             
-            let originalFileURL = self.getOriginalImagesDirectory().appendingPathComponent(originalImagePath)
-            let thumbnailFileURL = self.getThumbnailImagesDirectory().appendingPathComponent(thumbnailImagePath)
+            // 정규화된 이미지 생성 - 방향 보정
+            let normalizedImage = self.normalizeImageOrientation(image)
+            print("이미지 방향 정규화 완료")
             
-            print("이미지 저장 경로: \(originalFileURL.path)")
-            
-            // 원본 이미지 저장
-            if let originalData = image.jpegData(compressionQuality: 0.9) {
+            // JPEG으로 시도
+            if let originalData = normalizedImage.jpegData(compressionQuality: 0.9) {
+                let originalImagePath = "\(imageID).jpg"
+                let thumbnailImagePath = "\(imageID).jpg"
+                
+                let originalFileURL = self.getOriginalImagesDirectory().appendingPathComponent(originalImagePath)
+                let thumbnailFileURL = self.getThumbnailImagesDirectory().appendingPathComponent(thumbnailImagePath)
+                
+                print("JPEG 변환 성공: \(originalData.count) 바이트")
+                
                 do {
                     try originalData.write(to: originalFileURL)
+                    print("원본 이미지 저장 성공: \(originalFileURL.path)")
                     
                     // 썸네일 생성 및 저장
-                    if let thumbnail = self.resizeImage(image, targetSize: CGSize(width: 200, height: 200)) {
+                    if let thumbnail = self.resizeImage(normalizedImage, targetSize: CGSize(width: 200, height: 200)) {
                         if let thumbnailData = thumbnail.jpegData(compressionQuality: 0.7) {
                             try thumbnailData.write(to: thumbnailFileURL)
+                            print("썸네일 저장 성공: \(thumbnailFileURL.path)")
                             
                             // 이미지 레코드 생성
                             let imageRecord = ImageRecord(originalImagePath: originalImagePath, thumbnailImagePath: thumbnailImagePath)
@@ -77,9 +86,11 @@ class ImageManager {
                             observer.onNext(imageRecord)
                             observer.onCompleted()
                         } else {
+                            print("썸네일 JPEG 변환 실패")
                             observer.onError(NSError(domain: "com.meowiary.imagemanager", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to create thumbnail data"]))
                         }
                     } else {
+                        print("썸네일 생성 실패")
                         observer.onError(NSError(domain: "com.meowiary.imagemanager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create thumbnail"]))
                     }
                 } catch {
@@ -87,7 +98,48 @@ class ImageManager {
                     observer.onError(error)
                 }
             } else {
-                observer.onError(NSError(domain: "com.meowiary.imagemanager", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to create image data"]))
+                // JPEG 실패 시 PNG로 시도
+                print("JPEG 변환 실패, PNG로 시도")
+                if let originalData = normalizedImage.pngData() {
+                    let originalImagePath = "\(imageID).png"
+                    let thumbnailImagePath = "\(imageID).png"
+                    
+                    let originalFileURL = self.getOriginalImagesDirectory().appendingPathComponent(originalImagePath)
+                    let thumbnailFileURL = self.getThumbnailImagesDirectory().appendingPathComponent(thumbnailImagePath)
+                    
+                    print("PNG 변환 성공: \(originalData.count) 바이트")
+                    
+                    do {
+                        try originalData.write(to: originalFileURL)
+                        print("PNG 원본 이미지 저장 성공: \(originalFileURL.path)")
+                        
+                        // 썸네일 생성 및 저장
+                        if let thumbnail = self.resizeImage(normalizedImage, targetSize: CGSize(width: 200, height: 200)) {
+                            if let thumbnailData = thumbnail.pngData() {
+                                try thumbnailData.write(to: thumbnailFileURL)
+                                print("PNG 썸네일 저장 성공: \(thumbnailFileURL.path)")
+                                
+                                // 이미지 레코드 생성
+                                let imageRecord = ImageRecord(originalImagePath: originalImagePath, thumbnailImagePath: thumbnailImagePath)
+                                
+                                observer.onNext(imageRecord)
+                                observer.onCompleted()
+                            } else {
+                                print("PNG 썸네일 변환 실패")
+                                observer.onError(NSError(domain: "com.meowiary.imagemanager", code: 4, userInfo: [NSLocalizedDescriptionKey: "Failed to create PNG thumbnail data"]))
+                            }
+                        } else {
+                            print("PNG 썸네일 생성 실패")
+                            observer.onError(NSError(domain: "com.meowiary.imagemanager", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to create thumbnail for PNG"]))
+                        }
+                    } catch {
+                        print("PNG 이미지 저장 실패: \(error.localizedDescription)")
+                        observer.onError(error)
+                    }
+                } else {
+                    print("JPEG 및 PNG 변환 모두 실패")
+                    observer.onError(NSError(domain: "com.meowiary.imagemanager", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to create image data (both JPEG and PNG)"]))
+                }
             }
             
             return Disposables.create()
@@ -102,6 +154,7 @@ class ImageManager {
         print("썸네일 로드 시도: \(fileURL.path)")
         
         if let data = try? Data(contentsOf: fileURL) {
+            print("썸네일 로드 성공: \(data.count) 바이트")
             return UIImage(data: data)
         }
         print("썸네일 로드 실패: 파일이 없음")
@@ -116,6 +169,7 @@ class ImageManager {
         print("원본 이미지 로드 시도: \(fileURL.path)")
         
         if let data = try? Data(contentsOf: fileURL) {
+            print("원본 이미지 로드 성공: \(data.count) 바이트")
             return UIImage(data: data)
         }
         print("원본 이미지 로드 실패: 파일이 없음")
@@ -145,6 +199,20 @@ class ImageManager {
         return scaledImage
     }
     
+    // 이미지 방향 정규화 (올바른 방향으로 회전)
+    func normalizeImageOrientation(_ image: UIImage) -> UIImage {
+        if image.imageOrientation == .up {
+            return image
+        }
+        
+        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+        image.draw(in: CGRect(origin: .zero, size: image.size))
+        let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return normalizedImage ?? image
+    }
+    
     // 이미지 삭제
     func deleteImage(imageRecord: ImageRecord?) -> Observable<Void> {
         return Observable.create { observer in
@@ -158,12 +226,22 @@ class ImageManager {
             
             if let originalPath = imageRecord.originalImagePath {
                 let originalURL = self.getOriginalImagesDirectory().appendingPathComponent(originalPath)
-                try? fileManager.removeItem(at: originalURL)
+                do {
+                    try fileManager.removeItem(at: originalURL)
+                    print("원본 이미지 삭제 성공: \(originalURL.path)")
+                } catch {
+                    print("원본 이미지 삭제 실패: \(error.localizedDescription)")
+                }
             }
             
             if let thumbnailPath = imageRecord.thumbnailImagePath {
                 let thumbnailURL = self.getThumbnailImagesDirectory().appendingPathComponent(thumbnailPath)
-                try? fileManager.removeItem(at: thumbnailURL)
+                do {
+                    try fileManager.removeItem(at: thumbnailURL)
+                    print("썸네일 이미지 삭제 성공: \(thumbnailURL.path)")
+                } catch {
+                    print("썸네일 이미지 삭제 실패: \(error.localizedDescription)")
+                }
             }
             
             observer.onNext(())
