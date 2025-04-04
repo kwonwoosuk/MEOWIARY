@@ -297,8 +297,8 @@ private func createMockDataIfNeeded() {
     let mockDataCreated = defaults.bool(forKey: "mockDataCreated")
     
     if !mockDataCreated {
-        let realmManager = RealmManager()
-        realmManager.createMockData()
+      let mockDataManager = MockDataManager()
+      mockDataManager.createMockData()
         
         // 데이터 생성 완료 표시
         defaults.set(true, forKey: "mockDataCreated")

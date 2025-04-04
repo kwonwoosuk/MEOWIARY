@@ -447,7 +447,7 @@ final class DailyDiaryViewController: BaseViewController {
   
   private func presentPhotoLibrary() {
     var configuration = PHPickerConfiguration()
-    configuration.selectionLimit = 1
+    configuration.selectionLimit = 3
     configuration.filter = .images
     
     let picker = PHPickerViewController(configuration: configuration)

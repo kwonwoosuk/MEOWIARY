@@ -17,14 +17,14 @@ final class CardCalendarView: BaseView {
   private var symptomsData: [Int: Bool] = [:]  // Dictionary to track days with symptoms
   private var pageWidth: CGFloat = 0
   private var dayCardData: [Int: DayCard] = [:]
-  private let realmManager = RealmManager()
+  private let dayCardRepository = DayCardRepository()
   
   public var isCalendarMode = false {
-      didSet {
-          print("CardCalendarView: 캘린더 모드 변경: \(isCalendarMode)")
-          // 모드 변경 시 컬렉션 뷰 리로드
-          
-      }
+    didSet {
+      print("CardCalendarView: 캘린더 모드 변경: \(isCalendarMode)")
+      // 모드 변경 시 컬렉션 뷰 리로드
+      
+    }
   }
   
   // MARK: - UI Components
@@ -95,17 +95,17 @@ final class CardCalendarView: BaseView {
   }
   
   func updateData(year: Int, month: Int) {
-      dayCardData = realmManager.getDayCardsMapForMonth(year: year, month: month)
-      
-      // 캘린더 그리드 업데이트 (플립 상태일 때만)
-      if isCalendarMode {
-          // 현재 보이는 셀만 업데이트
-          if let cell = getCellForIndex(month - 1) {
-              // 수정: CardCell의 createCalendarGrid 호출
-              cell.createCalendarGrid(with: dayCardData)
-          }
+    dayCardData = dayCardRepository.getDayCardsMapForMonth(year: year, month: month)
+    
+    // 캘린더 그리드 업데이트 (플립 상태일 때만)
+    if isCalendarMode {
+      // 현재 보이는 셀만 업데이트
+      if let cell = getCellForIndex(month - 1) {
+        // 수정: CardCell의 createCalendarGrid 호출
+        cell.createCalendarGrid(with: dayCardData)
       }
     }
+  }
   
   // 페이지 너비를 계산하는 메서드
   private func calculatePageWidth() {
@@ -179,62 +179,62 @@ final class CardCalendarView: BaseView {
   }
   
   func getCellForIndex(_ index: Int) -> CardCell? {
-      let indexPath = IndexPath(item: index, section: 0)
-      
-      // 두 가지 방법으로 시도
-      if let cell = cardCollectionView.cellForItem(at: indexPath) as? CardCell {
-          return cell
+    let indexPath = IndexPath(item: index, section: 0)
+    
+    // 두 가지 방법으로 시도
+    if let cell = cardCollectionView.cellForItem(at: indexPath) as? CardCell {
+      return cell
+    }
+    
+    // 화면에 보이지 않는 셀도 적용하기 위해 모든 셀을 탐색
+    for cell in cardCollectionView.visibleCells {
+      if let cardCell = cell as? CardCell, cardCell.tag == index + 1 {
+        return cardCell
       }
-      
-      // 화면에 보이지 않는 셀도 적용하기 위해 모든 셀을 탐색
-      for cell in cardCollectionView.visibleCells {
-          if let cardCell = cell as? CardCell, cardCell.tag == index + 1 {
-              return cardCell
-          }
-      }
-      
-      return nil
+    }
+    
+    return nil
   }
   
   func flipAllToCalendar() {
-      // 이미 캘린더 모드면 무시
-      guard !isCalendarMode else { return }
-      
-      // 모드 변경 전에 모든 셀에 애니메이션 적용
-      for i in 0..<12 {
-          if let cell = getCellForIndex(i) {
-              // 현재 보이는 셀과 그 주변 셀에만 애니메이션 적용
-              cell.flipToCalendar()
-          }
+    // 이미 캘린더 모드면 무시
+    guard !isCalendarMode else { return }
+    
+    // 모드 변경 전에 모든 셀에 애니메이션 적용
+    for i in 0..<12 {
+      if let cell = getCellForIndex(i) {
+        // 현재 보이는 셀과 그 주변 셀에만 애니메이션 적용
+        cell.flipToCalendar()
       }
-      
-      // 이제 모드를 변경
-      isCalendarMode = true
-      
-     
-      
-      print("CardCalendarView: 모든 카드를 캘린더로 플립 (모든 셀에 애니메이션 적용)")
+    }
+    
+    // 이제 모드를 변경
+    isCalendarMode = true
+    
+    
+    
+    print("CardCalendarView: 모든 카드를 캘린더로 플립 (모든 셀에 애니메이션 적용)")
   }
-
+  
   // 모든 카드를 원래 상태로 한 번에 되돌리기 (모든 셀에 애니메이션 적용)
   func flipAllToCard() {
-      // 이미 카드 모드면 무시
-      guard isCalendarMode else { return }
-      
-      // 모드 변경 전에 모든 셀에 애니메이션 적용
-      for i in 0..<12 {
-          if let cell = getCellForIndex(i) {
-              // 현재 보이는 셀과 그 주변 셀에만 애니메이션 적용
-              cell.flipToCard()
-          }
-      }
-      
-      // 이제 모드를 변경
-      isCalendarMode = false
-      
+    // 이미 카드 모드면 무시
+    guard isCalendarMode else { return }
     
-      
-      print("CardCalendarView: 모든 카드를 원래 상태로 되돌림 (모든 셀에 애니메이션 적용)")
+    // 모드 변경 전에 모든 셀에 애니메이션 적용
+    for i in 0..<12 {
+      if let cell = getCellForIndex(i) {
+        // 현재 보이는 셀과 그 주변 셀에만 애니메이션 적용
+        cell.flipToCard()
+      }
+    }
+    
+    // 이제 모드를 변경
+    isCalendarMode = false
+    
+    
+    
+    print("CardCalendarView: 모든 카드를 원래 상태로 되돌림 (모든 셀에 애니메이션 적용)")
   }
   
   func updateSymptomView(isShowing: Bool) {
@@ -246,33 +246,33 @@ final class CardCalendarView: BaseView {
   }
   
   func updateMonth(month: Int) {
-     // 월 레이블 업데이트
-     UIView.performWithoutAnimation {
-         monthLabel.text = "\(month)월"
-         monthLabel.setNeedsDisplay()
-         monthLabel.layoutIfNeeded()
-     }
-     
-     print("CardCalendarView - 월 레이블 업데이트: \(month)월")
-     
-     
-     // 데이터 업데이트
-     updateData(year: currentYear, month: currentMonth)
-   }
+    // 월 레이블 업데이트
+    UIView.performWithoutAnimation {
+      monthLabel.text = "\(month)월"
+      monthLabel.setNeedsDisplay()
+      monthLabel.layoutIfNeeded()
+    }
+    
+    print("CardCalendarView - 월 레이블 업데이트: \(month)월")
+    
+    
+    // 데이터 업데이트
+    updateData(year: currentYear, month: currentMonth)
+  }
   
   func updateYear(year: String) {
     print("CardCalendarView - 연도 업데이트: \(year)")
     
     if let yearInt = Int(year) {
-        currentYear = yearInt
-        updateData(year: currentYear, month: currentMonth)
-        cardCollectionView.reloadData()
-        
-        // 년도 변경 시 현재 월 위치로 다시 스크롤
-        scrollToMonth(month: currentMonth, animated: false)
+      currentYear = yearInt
+      updateData(year: currentYear, month: currentMonth)
+      cardCollectionView.reloadData()
+      
+      // 년도 변경 시 현재 월 위치로 다시 스크롤
+      scrollToMonth(month: currentMonth, animated: false)
     }
   }
-
+  
   
   // 뷰 크기가 변경될 때 호출되는 메서드
   override func layoutSubviews() {
@@ -291,8 +291,8 @@ final class CardCalendarView: BaseView {
   }
 }
 func cellPrepared(cell: CardCell, forMonth month: Int) {
-    // 월을 기준으로 고유 태그 설정 (나중에 찾을 수 있도록)
-    cell.tag = month
+  // 월을 기준으로 고유 태그 설정 (나중에 찾을 수 있도록)
+  cell.tag = month
 }
 // MARK: - CardCalendarView Collection View Extensions
 extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
@@ -302,33 +302,33 @@ extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate
   }
   
   func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-      guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CardCell", for: indexPath) as? CardCell else {
-          return UICollectionViewCell()
-      }
-      
-      // 셀 구성
-      let month = indexPath.item + 1
-      
-      // 현재 월의 데이터 가져오기
-      let monthData = realmManager.getDayCardsMapForMonth(year: currentYear, month: month)
-      
-      cell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
-      
-      // 셀에 고유 태그 설정 (월 기준)
-      cellPrepared(cell: cell, forMonth: month)
-      
-      // 캘린더 모드에 따라 셀 상태 설정
-      if isCalendarMode {
-          // 애니메이션 없이 상태 설정 (이미 애니메이션은 모드 변경 시 적용)
-          cell.flipToCalendar(animated: false)
-      } else {
-          // 애니메이션 없이 상태 설정
-          cell.flipToCard(animated: false)
-      }
-      
-      return cell
+    guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CardCell", for: indexPath) as? CardCell else {
+      return UICollectionViewCell()
+    }
+    
+    // 셀 구성
+    let month = indexPath.item + 1
+    
+    // 현재 월의 데이터 가져오기
+    let monthData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
+    
+    cell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
+    
+    // 셀에 고유 태그 설정 (월 기준)
+    cellPrepared(cell: cell, forMonth: month)
+    
+    // 캘린더 모드에 따라 셀 상태 설정
+    if isCalendarMode {
+      // 애니메이션 없이 상태 설정 (이미 애니메이션은 모드 변경 시 적용)
+      cell.flipToCalendar(animated: false)
+    } else {
+      // 애니메이션 없이 상태 설정
+      cell.flipToCard(animated: false)
+    }
+    
+    return cell
   }
-
+  
   // 스크롤 후 현재 보이는 셀에 대한 처리 추가
   
   

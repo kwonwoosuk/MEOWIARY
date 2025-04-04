@@ -17,7 +17,7 @@ final class DetailViewController: BaseViewController {
     private let disposeBag = DisposeBag()
     private let imageData: GalleryViewModel.ImageData
     private let imageManager: ImageManager
-    private let realmManager = RealmManager()
+  private let imageRecordRepository = ImageRecordRepository()
     // MARK: - UI Components
     private let navigationBarView = CustomNavigationBarView()
     
@@ -70,7 +70,7 @@ final class DetailViewController: BaseViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-      print(realmManager.realm.configuration.fileURL)
+      
     }
     
     // MARK: - UI Setup
@@ -139,8 +139,6 @@ final class DetailViewController: BaseViewController {
         dateFormatter.dateFormat = "yyyy년 M월 d일"
         dateLabel.text = dateFormatter.string(from: imageData.createdAt)
         
-        // 즐겨찾기 상태 반영
-        updateFavoriteButton()
     }
     
     // MARK: - Binding
@@ -153,14 +151,9 @@ final class DetailViewController: BaseViewController {
             .disposed(by: disposeBag)
         
         // 즐겨찾기 버튼 액션
-        favoriteButton.rx.tap
-            .subscribe(onNext: { [weak self] in
-                guard let self = self else { return }
-                let realmManager = RealmManager()
-                realmManager.toggleImageFavorite(imageId: self.imageData.id)
-                self.updateFavoriteButton()
-            })
-            .disposed(by: disposeBag)
+      imageRecordRepository.toggleFavorite(imageId: self.imageData.id)
+          .subscribe()
+          .disposed(by: disposeBag)
         
         // 공유 버튼 액션
         shareButton.rx.tap
@@ -181,16 +174,6 @@ final class DetailViewController: BaseViewController {
                 self.present(activityViewController, animated: true)
             })
             .disposed(by: disposeBag)
-    }
-    
-    // MARK: - Helper Methods
-    private func updateFavoriteButton() {
-        // Realm에서 최신 상태 확인
-        
-        if let imageRecord = realmManager.realm.object(ofType: ImageRecord.self, forPrimaryKey: imageData.id) {
-            let heartImageName = imageRecord.isFavorite ? "heart.fill" : "heart"
-            favoriteButton.setImage(UIImage(systemName: heartImageName), for: .normal)
-        }
     }
 }
 

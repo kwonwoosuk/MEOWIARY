@@ -42,8 +42,6 @@ enum DesignSystem {
       case negative4 = "F44336"   //  중증  (빨간색)
       case negative5 = "7a1c1a"   // 혈변등 (갈색)
       
-      // case 태그별 색상으로 추가 예정
-      //          a8e5e8
       
       func inUIColor() -> UIColor {
         return UIColor(hex: self.rawValue)

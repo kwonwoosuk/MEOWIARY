@@ -44,13 +44,13 @@ class HomeViewModel: BaseViewModel {
   private let monthSubject = BehaviorRelay<Int>(value: Calendar.current.component(.month, from: Date()))
   private let isShowingSymptomsSubject = BehaviorRelay<Bool>(value: false)
   private let weatherInfoRelay = BehaviorRelay<Weather?>(value: nil)
-  private let realmManager: RealmManager
+  private let dayCardRepository: DayCardRepository
   private let weatherService: WeatherService
   
   // MARK: - Initialization
-  init(realmManager: RealmManager = RealmManager(),
+  init(dayCardRepository: DayCardRepository = DayCardRepository(),
        weatherService: WeatherService = WeatherService()) {
-    self.realmManager = realmManager
+    self.dayCardRepository = dayCardRepository
     self.weatherService = weatherService
     
     let calendar = Calendar.current
@@ -229,7 +229,8 @@ class HomeViewModel: BaseViewModel {
   
   private func fetchDayCardData(year: Int, month: Int) {
       // Realm에서 해당 월의 DayCard 가져오기
-      let dayCards = realmManager.getDayCardsMapForMonth(year: year, month: month)
+    let dayCards = dayCardRepository.getDayCardsMapForMonth(year: year, month: month)
+
       
       // 데이터 처리 및 UI 업데이트를 위한 내용 추가 가능
       print("Fetched \(dayCards.count) DayCards for \(year)-\(month)")
@@ -237,7 +238,7 @@ class HomeViewModel: BaseViewModel {
   
   private func fetchSymptomRecords(year: Int, month: Int) {
     // Realm에서 증상 기록 가져오기
-    let records = realmManager.getSymptomRecords(year: year, month: month)
+    let records = dayCardRepository.getSymptomRecords(year: year, month: month)
     
     // 증상 기록으로 UI 업데이트
   }

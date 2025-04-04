@@ -16,7 +16,8 @@ final class GalleryViewModel: BaseViewModel {
   // MARK: - Properties
   var disposeBag = DisposeBag()
   let imageManager = ImageManager.shared
-  private let realmManager = RealmManager()
+  private let dayCardRepository = DayCardRepository()
+  private let imageRecordRepository = ImageRecordRepository()
   
   // 이미지 데이터 타입 정의
   struct ImageData {
@@ -72,7 +73,8 @@ final class GalleryViewModel: BaseViewModel {
       }
       
       // Realm에서 모든 DayCard 가져오기
-      let dayCards = self.realmManager.getAllDayCards()
+      let dayCards = self.dayCardRepository.getAllDayCards()
+
       
       // ImageData 배열 생성
       var imageDataList: [ImageData] = []
@@ -110,6 +112,8 @@ final class GalleryViewModel: BaseViewModel {
   
   // 즐겨찾기 토글
   func toggleFavorite(imageId: String) {
-    realmManager.toggleImageFavorite(imageId: imageId)
+    imageRecordRepository.toggleFavorite(imageId: imageId)
+        .subscribe()
+        .disposed(by: disposeBag)
   }
 }
