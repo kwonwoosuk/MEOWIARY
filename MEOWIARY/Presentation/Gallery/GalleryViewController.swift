@@ -56,6 +56,11 @@ final class GalleryViewController: BaseViewController {
     super.viewDidLoad()
   }
   
+  override func viewWillAppear(_ animated: Bool) {
+      super.viewWillAppear(animated)
+      viewModel.refreshData()
+  }
+  
   // MARK: - UI Setup
   override func configureHierarchy() {
     view.addSubview(navigationBarView)

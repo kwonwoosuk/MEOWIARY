@@ -18,7 +18,7 @@ final class GalleryViewModel: BaseViewModel {
   let imageManager = ImageManager.shared
   private let dayCardRepository = DayCardRepository()
   private let imageRecordRepository = ImageRecordRepository()
-  
+  private let imagesRelay = BehaviorRelay<[ImageData]>(value: [])
   // 이미지 데이터 타입 정의
   struct ImageData {
     let id: String
@@ -41,7 +41,7 @@ final class GalleryViewModel: BaseViewModel {
   
   // MARK: - Transform
   func transform(input: Input) -> Output {
-    let imagesRelay = BehaviorRelay<[ImageData]>(value: [])
+    
     
     // 이미지 데이터 로드
     input.viewDidLoad
@@ -50,9 +50,10 @@ final class GalleryViewModel: BaseViewModel {
         return self.loadImageData()
       }
       .subscribe(onNext: { images in
-        imagesRelay.accept(images)
+        self.imagesRelay.accept(images)
       })
       .disposed(by: disposeBag)
+    
     
     // 빈 상태 감지
     let isEmpty = imagesRelay.map { $0.isEmpty }
@@ -61,6 +62,15 @@ final class GalleryViewModel: BaseViewModel {
       images: imagesRelay.asDriver(),
       isEmpty: isEmpty.asDriver(onErrorJustReturn: true)
     )
+  }
+  
+  func refreshData() {
+      // 데이터 다시 로드
+      loadImageData()
+          .subscribe(onNext: { [weak self] images in
+              self?.imagesRelay.accept(images)
+          })
+          .disposed(by: disposeBag)
   }
   
   // MARK: - Methods

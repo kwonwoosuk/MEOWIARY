@@ -121,7 +121,7 @@ final class NavigationBarView: BaseView {
     case "thunderstorm", "thunderstorm with light rain", "thunderstorm with rain", "thunderstorm with heavy rain":
       weatherIcon = .thunderstorm
     default:
-      weatherIcon = .sunny // 기본값
+      weatherIcon = .sunny 
     }
     
     // 아이콘 업데이트
