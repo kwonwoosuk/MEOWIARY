@@ -54,7 +54,7 @@ final class HospitalSearchViewController: BaseViewController {
   }
   
   deinit {
-      print("호스피탈 디이닛")
+      print("HospitalSearchViewController Deinit")
       mapView.delegate = nil
   }
   // MARK: - UI Setup

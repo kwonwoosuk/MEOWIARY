@@ -61,10 +61,6 @@ class HomeViewModel: BaseViewModel {
     self.monthSubject.accept(currentMonth)
     
     print("Initial year set to: \(currentYear), month: \(currentMonth)")
-    
-    Task {
-      await fetchData()
-    }
   }
   
   // MARK: - Input-Output Transform
