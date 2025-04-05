@@ -91,30 +91,33 @@ class ImageRecordRepository: ImageRecordRepositoryProtocol {
         }
     }
     
-    func deleteImageRecord(_ imageRecord: ImageRecord) -> Observable<Void> {
-        return Observable.create { observer in
-            let realm = self.getRealm()
-            
-            do {
-                try realm.write {
-                    // 연결된 DayCard에서 이미지 레코드 참조 제거
-                    let dayCards = realm.objects(DayCard.self).filter("imageRecord.id == %@", imageRecord.id)
-                    for dayCard in dayCards {
-                        dayCard.imageRecord = nil
-                    }
-                    
-                    // 이미지 레코드 삭제
-                    realm.delete(imageRecord)
-                }
-                observer.onNext(())
-                observer.onCompleted()
-            } catch {
-                observer.onError(error)
-            }
-            
-            return Disposables.create()
-        }
-    }
+  func deleteImageRecord(_ imageRecord: ImageRecord) -> Observable<Void> {
+      return Observable.create { observer in
+          let realm = self.getRealm()
+          
+          do {
+              try realm.write {
+                  // 연결된 DayCard에서 이미지 레코드 참조 제거
+                  let dayCards = realm.objects(DayCard.self).filter("ANY imageRecords.id == %@", imageRecord.id)
+                  for dayCard in dayCards {
+                      // List에서 해당 이미지 레코드 찾아서 제거
+                      if let index = dayCard.imageRecords.firstIndex(where: { $0.id == imageRecord.id }) {
+                          dayCard.imageRecords.remove(at: index)
+                      }
+                  }
+                  
+                  // 이미지 레코드 삭제
+                  realm.delete(imageRecord)
+              }
+              observer.onNext(())
+              observer.onCompleted()
+          } catch {
+              observer.onError(error)
+          }
+          
+          return Disposables.create()
+      }
+  }
     
     // RxSwift를 활용한 Observable 메서드 추가
     func getAllImageRecordsObservable() -> Observable<[ImageRecord]> {

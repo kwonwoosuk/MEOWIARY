@@ -232,4 +232,30 @@ class DayCardRepository: DayCardRepositoryProtocol {
             return Disposables.create()
         }
     }
+  // 이미지 레코드 추가 메서드
+  func addImageRecord(_ imageRecords: [ImageRecord], to dayCard: DayCard) -> Observable<Void> {
+      return Observable.create { observer in
+          let realm = self.getRealm()
+          
+          guard let localDayCard = realm.object(ofType: DayCard.self, forPrimaryKey: dayCard.id) else {
+              observer.onError(NSError(domain: "DayCard not found", code: -1, userInfo: nil))
+              return Disposables.create()
+          }
+          
+          do {
+              try realm.write {
+                  for imageRecord in imageRecords {
+                      localDayCard.imageRecords.append(imageRecord)
+                  }
+              }
+              observer.onNext(())
+              observer.onCompleted()
+          } catch {
+              observer.onError(error)
+          }
+          
+          return Disposables.create()
+      }
+  }
+  
 }

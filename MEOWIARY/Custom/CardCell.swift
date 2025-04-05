@@ -449,9 +449,11 @@ final class CardCell: UICollectionViewCell {
           }
           
           // 일기 이미지 표시
-          if let dayCard = dayCardData[day], let imageRecord = dayCard.imageRecord, let thumbnailPath = imageRecord.thumbnailImagePath {
-              addImageIndicator(to: dayButton, imagePath: thumbnailPath)
-          }
+        if let dayCard = dayCardData[day], !dayCard.imageRecords.isEmpty,
+               let imageRecord = dayCard.imageRecords.first,
+               let thumbnailPath = imageRecord.thumbnailImagePath {
+                addImageIndicator(to: dayButton, imagePath: thumbnailPath)
+            }
           
           // 증상 표시
           if let hasSymptom = symptomsData[day], hasSymptom {

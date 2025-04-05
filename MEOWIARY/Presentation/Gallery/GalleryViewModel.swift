@@ -75,49 +75,50 @@ final class GalleryViewModel: BaseViewModel {
   
   // MARK: - Methods
   private func loadImageData() -> Observable<[ImageData]> {
-    return Observable.create { [weak self] observer in
-      guard let self = self else {
-        observer.onNext([])
-        observer.onCompleted()
-        return Disposables.create()
+      return Observable.create { [weak self] observer in
+          guard let self = self else {
+              observer.onNext([])
+              observer.onCompleted()
+              return Disposables.create()
+          }
+          
+          // Realm에서 모든 DayCard 가져오기
+          let dayCards = self.dayCardRepository.getAllDayCards()
+          
+          // ImageData 배열 생성
+          var imageDataList: [ImageData] = []
+          
+          for dayCard in dayCards {
+              // 각 DayCard의 모든 imageRecords를 확인
+              for imageRecord in dayCard.imageRecords {
+                  if let originalPath = imageRecord.originalImagePath,
+                     let thumbnailPath = imageRecord.thumbnailImagePath {
+                      
+                      let fileExists = self.imageManager.checkImageFileExists(path: originalPath)
+                      print("이미지 파일 존재 여부: \(fileExists), 경로: \(originalPath)")
+                      
+                      let imageData = ImageData(
+                          id: imageRecord.id,
+                          originalPath: originalPath,
+                          thumbnailPath: thumbnailPath,
+                          isFavorite: imageRecord.isFavorite,
+                          createdAt: dayCard.date,
+                          dayCardId: dayCard.id
+                      )
+                      
+                      imageDataList.append(imageData)
+                  }
+              }
+          }
+          
+          // 최신 이미지가 먼저 표시되도록 정렬
+          let sortedList = imageDataList.sorted { $0.createdAt > $1.createdAt }
+          
+          observer.onNext(sortedList)
+          observer.onCompleted()
+          
+          return Disposables.create()
       }
-      
-      // Realm에서 모든 DayCard 가져오기
-      let dayCards = self.dayCardRepository.getAllDayCards()
-
-      
-      // ImageData 배열 생성
-      var imageDataList: [ImageData] = []
-      
-      for dayCard in dayCards {
-        if let imageRecord = dayCard.imageRecord,
-           let originalPath = imageRecord.originalImagePath,
-           let thumbnailPath = imageRecord.thumbnailImagePath {
-          
-          let fileExists = self.imageManager.checkImageFileExists(path: originalPath)
-          print("이미지 파일 존재 여부: \(fileExists), 경로: \(originalPath)")
-          
-          let imageData = ImageData(
-            id: imageRecord.id,
-            originalPath: originalPath,
-            thumbnailPath: thumbnailPath,
-            isFavorite: imageRecord.isFavorite,
-            createdAt: dayCard.date,
-            dayCardId: dayCard.id
-          )
-          
-          imageDataList.append(imageData)
-        }
-      }
-      
-      // 최신 이미지가 먼저 표시되도록 정렬
-      let sortedList = imageDataList.sorted { $0.createdAt > $1.createdAt }
-      
-      observer.onNext(sortedList)
-      observer.onCompleted()
-      
-      return Disposables.create()
-    }
   }
   
   // 즐겨찾기 토글
