@@ -12,6 +12,10 @@ import CoreLocation
 
 final class AddressSearchViewModel: BaseViewModel {
     
+  deinit {
+      print("AddressSearchViewModel deinit 호출됨")
+  }
+  
     // MARK: - BaseViewModel
     var disposeBag = DisposeBag()
     

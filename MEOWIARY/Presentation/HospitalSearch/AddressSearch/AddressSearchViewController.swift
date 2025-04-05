@@ -17,6 +17,9 @@ protocol AddressSearchViewControllerDelegate: AnyObject {
 
 final class AddressSearchViewController: BaseViewController {
   
+  deinit {
+      print("AddressSearchViewController deinit 호출됨")
+  }
   // MARK: - Properties
   private let viewModel = AddressSearchViewModel()
   private let disposeBag = DisposeBag()
@@ -77,6 +80,8 @@ final class AddressSearchViewController: BaseViewController {
     emptyResultView.addSubview(emptyImageView)
     emptyResultView.addSubview(emptyLabel)
   }
+  
+  
   
   override func configureLayout() {
     navigationBarView.snp.makeConstraints { make in

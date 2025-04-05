@@ -17,7 +17,7 @@ enum LocationError: Error {
   case networkError(Error)
 }
 
-final class LocationSearchViewModel: NSObject, BaseViewModel {
+final class HospitalSearchViewModel: NSObject, BaseViewModel {
   
   // MARK: - BaseViewModel
   var disposeBag = DisposeBag()
@@ -48,12 +48,21 @@ final class LocationSearchViewModel: NSObject, BaseViewModel {
   private let shouldShowAddressSearchRelay = BehaviorRelay<Bool>(value: false)
   private let selectedAddressNameRelay = BehaviorRelay<String?>(value: nil)
   private let isUsingCurrentLocationRelay = BehaviorRelay<Bool>(value: true)
+  private var searchTask: Task<Void, Never>?
   
   // MARK: - Initialization
   override init() {
     super.init()
     setupLocationManager()
   }
+  
+  deinit {
+      locationManager.delegate = nil
+      locationManager.stopUpdatingLocation()
+      searchTask?.cancel()
+      print("HospitalSearchViewModel deinit 호출됨")
+  }
+  
   
   // MARK: - Input-Output Transform
   func transform(input: Input) -> Output {
@@ -258,39 +267,57 @@ final class LocationSearchViewModel: NSObject, BaseViewModel {
   }
   
   private func searchHospitalsNear(latitude: Double, longitude: Double) {
-    isLoadingRelay.accept(true)
-    
-    // 카카오맵 API를 사용하여 병원 검색
-    Task {
-      do {
-        let hospitals = try await KakaoMapManager.shared.searchHospitals(
-          latitude: latitude,
-          longitude: longitude
-        )
-        
-        DispatchQueue.main.async { [weak self] in
-          guard let self = self else { return }
-          
-          self.hospitalsRelay.accept(hospitals)
-          self.isLoadingRelay.accept(false) // 로딩 인디케이터 비활성화
-          
-          if hospitals.isEmpty {
-            self.errorRelay.accept("주변에 24시 동물병원이 없습니다.")
-          } else {
-            self.errorRelay.accept(nil)
+      isLoadingRelay.accept(true)
+      
+      // 이전 Task 취소
+      searchTask?.cancel()
+      
+      // 새 Task 시작
+      searchTask = Task {
+          do {
+              guard !Task.isCancelled else { return }
+              let hospitals = try await KakaoMapManager.shared.searchHospitals(
+                  latitude: latitude,
+                  longitude: longitude
+              )
+              
+              // 취소 확인
+              guard !Task.isCancelled else { return }
+              
+              DispatchQueue.main.async { [weak self] in
+                  guard let self = self else { return }
+                  self.hospitalsRelay.accept(hospitals)
+                  self.isLoadingRelay.accept(false)
+                  
+                  if hospitals.isEmpty {
+                      self.errorRelay.accept("주변에 24시 동물병원이 없습니다.")
+                  } else {
+                      self.errorRelay.accept(nil)
+                  }
+              }
+          } catch {
+              guard !Task.isCancelled else { return }
+              
+              DispatchQueue.main.async { [weak self] in
+                  guard let self = self else { return }
+                  self.hospitalsRelay.accept([])
+                  self.isLoadingRelay.accept(false)
+                  self.errorRelay.accept("병원 검색 중 오류가 발생했습니다: \(error.localizedDescription)")
+              }
           }
-        }
-      } catch {
-        DispatchQueue.main.async { [weak self] in
-          guard let self = self else { return }
-          
-          self.hospitalsRelay.accept([])
-          self.isLoadingRelay.accept(false) // 오류 발생 시에도 로딩 인디케이터 비활성화
-          self.errorRelay.accept("병원 검색 중 오류가 발생했습니다: \(error.localizedDescription)")
-        }
       }
-    }
   }
+
+  // cleanup 메서드에 Task 취소 추가
+  func cleanup() {
+      locationManager.delegate = nil
+      locationManager.stopUpdatingLocation()
+      searchTask?.cancel() // Task 취소 추가
+      searchTask = nil
+      print("locationManager 리소스 정리됨")
+  }
+
+
   
   func requestLocationPermission() {
     locationManager.requestWhenInUseAuthorization()
@@ -298,7 +325,7 @@ final class LocationSearchViewModel: NSObject, BaseViewModel {
 }
 
 // MARK: - CLLocationManagerDelegate
-extension LocationSearchViewModel: CLLocationManagerDelegate {
+extension HospitalSearchViewModel: CLLocationManagerDelegate {
   func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
     if let location = locations.last {
       userLocationRelay.accept(location.coordinate)

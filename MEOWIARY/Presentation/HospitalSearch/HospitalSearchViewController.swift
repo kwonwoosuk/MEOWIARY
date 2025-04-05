@@ -7,10 +7,10 @@ import CoreLocation
 import SnapKit
 import MapKit
 
-final class LocationSearchViewController: BaseViewController {
+final class HospitalSearchViewController: BaseViewController {
   
   // MARK: - Properties
-  private let viewModel = LocationSearchViewModel()
+  private let viewModel = HospitalSearchViewModel()
   private let disposeBag = DisposeBag()
   private let manualLocationSelectedSubject = PublishSubject<(CLLocationCoordinate2D, String)>()
   
@@ -39,7 +39,24 @@ final class LocationSearchViewController: BaseViewController {
       viewModel.fetchHospitals()
     }
   }
+
+  override func viewDidDisappear(_ animated: Bool) {
+      super.viewDidDisappear(animated)
+      
+      // MapView 정리
+      mapView.removeAnnotations(mapView.annotations)
+      mapView.delegate = nil
+      
+      // 추가: 화면이 사라질 때 정리할 내용
+      if isBeingDismissed || isMovingFromParent {
+          viewModel.cleanup() // 아래에 추가할 메서드
+      }
+  }
   
+  deinit {
+      print("호스피탈 디이닛")
+      mapView.delegate = nil
+  }
   // MARK: - UI Setup
   override func configureHierarchy() {
     view.addSubview(navigationBarView)
@@ -207,7 +224,7 @@ final class LocationSearchViewController: BaseViewController {
     let viewDidLoadEvent = PublishSubject<Void>()
     let refreshEvent = PublishSubject<Void>()
     
-    let input = LocationSearchViewModel.Input(
+    let input = HospitalSearchViewModel.Input(
       viewDidLoad: viewDidLoadEvent.asObservable(),
       refresh: refreshEvent.asObservable(),
       manualLocationSelected: manualLocationSelectedSubject.asObservable(),
@@ -266,12 +283,15 @@ final class LocationSearchViewController: BaseViewController {
     
     // 검색 결과에 따른 빈 화면 표시
     output.hospitals
-      .map { $0.isEmpty && !self.loadingIndicator.isAnimating }
-      .drive(onNext: { [weak self] isEmpty in
-        self?.emptyResultView.isHidden = !isEmpty
-        self?.tableView.isHidden = isEmpty
-      })
-      .disposed(by: disposeBag)
+        .map { [weak self] hospitals in
+            guard let self = self else { return false }
+            return hospitals.isEmpty && !self.loadingIndicator.isAnimating
+        }
+        .drive(onNext: { [weak self] isEmpty in
+            self?.emptyResultView.isHidden = !isEmpty
+            self?.tableView.isHidden = isEmpty
+        })
+        .disposed(by: disposeBag)
     
     // 위치 이름 바인딩
     output.selectedAddressName
@@ -297,22 +317,23 @@ final class LocationSearchViewController: BaseViewController {
       .disposed(by: disposeBag)
     
     // 셀 선택 이벤트
+    
     tableView.rx.itemSelected
-      .withLatestFrom(output.hospitals) { indexPath, hospitals -> (IndexPath, Hospital?) in
-        guard indexPath.row < hospitals.count else {
-          return (indexPath, nil)
+        .withLatestFrom(output.hospitals) { [weak self] indexPath, hospitals -> (IndexPath, Hospital?) in
+            guard indexPath.row < hospitals.count else {
+                return (indexPath, nil)
+            }
+            return (indexPath, hospitals[indexPath.row])
         }
-        return (indexPath, hospitals[indexPath.row])
-      }
-      .subscribe(onNext: { [weak self] tuple in
-        let (indexPath, hospital) = tuple
-        self?.tableView.deselectRow(at: indexPath, animated: true)
-        
-        if let hospital = hospital {
-          self?.showHospitalDetails(hospital: hospital)
-        }
-      })
-      .disposed(by: disposeBag)
+        .subscribe(onNext: { [weak self] tuple in
+            let (indexPath, hospital) = tuple
+            self?.tableView.deselectRow(at: indexPath, animated: true)
+            
+            if let hospital = hospital {
+                self?.showHospitalDetails(hospital: hospital)
+            }
+        })
+        .disposed(by: disposeBag)
     
     viewDidLoadEvent.onNext(())
   }
@@ -419,7 +440,7 @@ final class LocationSearchViewController: BaseViewController {
     }
 
     // MARK: - AddressSearchViewControllerDelegate
-    extension LocationSearchViewController: AddressSearchViewControllerDelegate {
+    extension HospitalSearchViewController: AddressSearchViewControllerDelegate {
       func didSelectLocation(coordinate: CLLocationCoordinate2D, addressName: String) {
         hasManuallySelectedLocation = true
         manualLocationSelectedSubject.onNext((coordinate, addressName))
@@ -427,7 +448,7 @@ final class LocationSearchViewController: BaseViewController {
     }
 
     // MARK: - MKMapViewDelegate
-    extension LocationSearchViewController: MKMapViewDelegate {
+    extension HospitalSearchViewController: MKMapViewDelegate {
       func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
         if annotation.title == "현재 위치" {
           // 현재 위치 마커 커스텀

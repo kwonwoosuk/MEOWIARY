@@ -236,7 +236,7 @@ final class HomeViewController: BaseViewController {
     
     recent24hButton.rx.tap
       .subscribe(onNext: { [weak self] in
-        let vc = LocationSearchViewController()
+        let vc = HospitalSearchViewController()
         vc.modalPresentationStyle = .fullScreen
         self?.present(vc, animated: true)
       })
