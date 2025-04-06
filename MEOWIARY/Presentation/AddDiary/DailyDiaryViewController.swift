@@ -16,7 +16,11 @@ final class DailyDiaryViewController: BaseViewController {
   // MARK: - Properties
   private let viewModel = DailyDiaryViewModel()
   private let disposeBag = DisposeBag()
-  private var selectedImages: [UIImage] = []
+  private var selectedImages: [UIImage] = [] {
+    didSet {
+      updateImageViews()
+    }
+  }
   private let selectedImagesRelay = BehaviorRelay<[UIImage]>(value: [])
   
   // MARK: - UI Components
@@ -69,6 +73,7 @@ final class DailyDiaryViewController: BaseViewController {
     let cameraImage = UIImage(systemName: "camera")
     button.setImage(cameraImage, for: .normal)
     button.tintColor = DesignSystem.Color.Tint.text.inUIColor()
+    button.setTitle("사진을 추가 하려면 클릭하세요!", for: .normal)
     
     return button
   }()
@@ -111,23 +116,14 @@ final class DailyDiaryViewController: BaseViewController {
     button.layer.cornerRadius = DesignSystem.Layout.cornerRadius
     return button
   }()
-  
-  private let photoLibraryButton: UIButton = {
-    let button = UIButton(type: .system)
-    button.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
-    button.setTitle("앨범", for: .normal)
-    button.setTitleColor(.white, for: .normal)
-    button.layer.cornerRadius = DesignSystem.Layout.cornerRadius
-    return button
-  }()
-  
+
   // 다중 이미지 선택 관련
   private let multiplePhotosButton: UIButton = {
     let button = UIButton(type: .system)
     button.setImage(UIImage(systemName: "photo.stack"), for: .normal)
-    button.tintColor = DesignSystem.Color.Tint.text.inUIColor()
-    button.setTitle(" 여러 사진 선택", for: .normal)
-    button.backgroundColor = DesignSystem.Color.Tint.lightGray.inUIColor()
+    button.setTitle("사진선택", for: .normal)
+    button.tintColor = DesignSystem.Color.Background.main.inUIColor()
+    button.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
     button.layer.cornerRadius = DesignSystem.Layout.cornerRadius
     return button
   }()
@@ -137,7 +133,7 @@ final class DailyDiaryViewController: BaseViewController {
     layout.scrollDirection = .horizontal
     layout.minimumLineSpacing = 10
     layout.itemSize = CGSize(width: 100, height: 100)
-      
+    
     let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
     collectionView.backgroundColor = .clear
     collectionView.register(ImageCell.self, forCellWithReuseIdentifier: "ImageCell")
@@ -210,6 +206,90 @@ final class DailyDiaryViewController: BaseViewController {
     NotificationCenter.default.removeObserver(self)
   }
   
+  private func updateImageViews() {
+    if selectedImages.count > 1 {
+      // 여러 이미지가 선택된 경우
+      photoImageView.isHidden = true
+      photoButton.isHidden = true
+      removePhotoButton.isHidden = true
+      photoButtonsStackView.isHidden = true
+      
+      // 선택된 이미지들을 표시하는 컬렉션뷰 표시
+      imagesCollectionView.isHidden = false
+      imagesCollectionView.reloadData()
+      createMediaButton.isHidden = false
+      
+      // 레이아웃 조정
+      imagesCollectionView.snp.remakeConstraints { make in
+        make.top.equalTo(dayOfWeekLabel.snp.bottom).offset(DesignSystem.Layout.standardMargin)
+        make.leading.trailing.equalTo(dateLabel)
+        make.height.equalTo(120)
+      }
+      
+      createMediaButton.snp.remakeConstraints { make in
+        make.top.equalTo(imagesCollectionView.snp.bottom).offset(DesignSystem.Layout.smallMargin)
+        make.leading.trailing.equalTo(dateLabel)
+        make.height.equalTo(44)
+      }
+      
+    
+      photoButtonsStackView.snp.remakeConstraints { make in
+        make.top.equalTo(createMediaButton.snp.bottom).offset(DesignSystem.Layout.smallMargin)
+        make.leading.trailing.equalTo(dateLabel)
+        make.height.equalTo(50)
+      }
+      
+      inputTextView.snp.remakeConstraints { make in
+        make.top.equalTo(photoButtonsStackView.snp.bottom).offset(DesignSystem.Layout.standardMargin)
+        make.leading.trailing.equalTo(dateLabel)
+        make.bottom.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
+        make.height.greaterThanOrEqualTo(150)
+      }
+    } else if selectedImages.count == 1 {
+      // 단일 이미지가 선택된 경우
+      photoImageView.isHidden = false
+      photoImageView.image = selectedImages.first
+      photoButton.isHidden = true
+      removePhotoButton.isHidden = false
+      
+      imagesCollectionView.isHidden = true
+      createMediaButton.isHidden = true
+      
+      // 원래 레이아웃으로 복원
+      restoreOriginalLayout()
+    } else {
+      // 이미지가 선택되지 않은 경우
+      photoImageView.isHidden = true
+      photoButton.isHidden = false
+      removePhotoButton.isHidden = true
+      
+      imagesCollectionView.isHidden = true
+      createMediaButton.isHidden = true
+      
+      // 원래 레이아웃으로 복원
+      restoreOriginalLayout()
+    }
+    
+    view.layoutIfNeeded()
+  }
+  
+  // 원래 레이아웃을 복원하는 메서드 추가
+  private func restoreOriginalLayout() {
+    
+    // 기존 레이아웃 복원
+    photoButtonsStackView.snp.remakeConstraints { make in
+      make.top.equalTo(photoButton.snp.bottom).offset(DesignSystem.Layout.smallMargin)
+      make.leading.trailing.equalTo(dateLabel)
+      make.height.equalTo(50)
+    }
+    
+    inputTextView.snp.remakeConstraints { make in
+      make.top.equalTo(photoButtonsStackView.snp.bottom).offset(DesignSystem.Layout.standardMargin)
+      make.leading.trailing.equalTo(dateLabel)
+      make.bottom.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
+      make.height.greaterThanOrEqualTo(150)
+    }
+  }
   // MARK: - UI Setup
   override func configureHierarchy() {
     view.addSubview(navigationBarView)
@@ -229,7 +309,6 @@ final class DailyDiaryViewController: BaseViewController {
     contentView.addSubview(inputTextView)
     
     photoButtonsStackView.addArrangedSubview(cameraButton)
-    photoButtonsStackView.addArrangedSubview(photoLibraryButton)
     photoButtonsStackView.addArrangedSubview(multiplePhotosButton)
     
     inputTextView.addSubview(placeholderLabel)
@@ -355,8 +434,30 @@ final class DailyDiaryViewController: BaseViewController {
     
     // 미디어 생성 버튼 액션
     createMediaButton.addTarget(self, action: #selector(createMediaButtonTapped), for: .touchUpInside)
+    
+    multiplePhotosButton.tag = 999
+    
+    // 포토 버튼 스택뷰 구성 변경 - 앨범 버튼 중앙에 배치
+    photoButtonsStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+    photoButtonsStackView.addArrangedSubview(cameraButton)
+    photoButtonsStackView.addArrangedSubview(multiplePhotosButton)
   }
   
+  private func removeSelectedPhoto() {
+    selectedImages = []
+    selectedImagesRelay.accept([])
+    
+    photoImageView.image = nil
+    photoImageView.isHidden = true
+    removePhotoButton.isHidden = true
+    photoButton.isHidden = false
+    
+    imagesCollectionView.isHidden = true
+    createMediaButton.isHidden = true
+    
+    // 원래 레이아웃으로 복원
+    restoreOriginalLayout()
+  }
   override func bind() {
     // 네비게이션 바 닫기 버튼 바인딩
     navigationBarView.leftButtonTapObservable
@@ -379,12 +480,6 @@ final class DailyDiaryViewController: BaseViewController {
       })
       .disposed(by: disposeBag)
     
-    // 앨범 버튼 액션
-    photoLibraryButton.rx.tap
-      .subscribe(onNext: { [weak self] in
-        self?.presentPhotoLibrary()
-      })
-      .disposed(by: disposeBag)
     
     // 사진 제거 버튼
     removePhotoButton.rx.tap
@@ -511,18 +606,7 @@ final class DailyDiaryViewController: BaseViewController {
     present(picker, animated: true)
   }
   
-  private func removeSelectedPhoto() {
-    selectedImages = []
-    selectedImagesRelay.accept([])
-    
-    photoImageView.image = nil
-    photoImageView.isHidden = true
-    removePhotoButton.isHidden = true
-    photoButton.isHidden = false
-    
-    imagesCollectionView.isHidden = true
-    createMediaButton.isHidden = true
-  }
+  
   
   private func showCameraPermissionAlert() {
     let alert = UIAlertController(
@@ -730,77 +814,77 @@ extension DailyDiaryViewController: UIImagePickerControllerDelegate, UINavigatio
 extension DailyDiaryViewController: PHPickerViewControllerDelegate {
   func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
     dismiss(animated: true)
-       
-       if results.isEmpty {
-         return
-       }
-       
-       // 단일 이미지 선택인 경우
-       if picker.configuration.selectionLimit == 1, let result = results.first {
-         result.itemProvider.loadObject(ofClass: UIImage.self) { [weak self] object, error in
-           if let error = error {
-             print("Photo picker error: \(error)")
-             return
-           }
-           
-           guard let image = object as? UIImage else { return }
-           
-           DispatchQueue.main.async {
-             self?.updateSelectedImages([image])
-           }
-         }
-         return
-       }
-       
-       // 다중 이미지 선택인 경우
-       var images: [UIImage] = []
-       let group = DispatchGroup()
-       
-       for result in results {
-         group.enter()
-         
-         result.itemProvider.loadObject(ofClass: UIImage.self) { object, error in
-           defer { group.leave() }
-           
-           if let error = error {
-             print("Photo picker error: \(error)")
-             return
-           }
-           
-           if let image = object as? UIImage {
-             images.append(image)
-           }
-         }
-       }
-       
-       group.notify(queue: .main) { [weak self] in
-         self?.updateSelectedImages(images)
-       }
-     }
+    
+    if results.isEmpty {
+      return
     }
+    
+    // 단일 이미지 선택인 경우
+    if picker.configuration.selectionLimit == 1, let result = results.first {
+      result.itemProvider.loadObject(ofClass: UIImage.self) { [weak self] object, error in
+        if let error = error {
+          print("Photo picker error: \(error)")
+          return
+        }
+        
+        guard let image = object as? UIImage else { return }
+        
+        DispatchQueue.main.async {
+          self?.updateSelectedImages([image])
+        }
+      }
+      return
+    }
+    
+    // 다중 이미지 선택인 경우
+    var images: [UIImage] = []
+    let group = DispatchGroup()
+    
+    for result in results {
+      group.enter()
+      
+      result.itemProvider.loadObject(ofClass: UIImage.self) { object, error in
+        defer { group.leave() }
+        
+        if let error = error {
+          print("Photo picker error: \(error)")
+          return
+        }
+        
+        if let image = object as? UIImage {
+          images.append(image)
+        }
+      }
+    }
+    
+    group.notify(queue: .main) { [weak self] in
+      self?.updateSelectedImages(images)
+    }
+  }
+}
 
-    // MARK: - UICollectionViewDelegate, UICollectionViewDataSource
-    extension DailyDiaryViewController: UICollectionViewDataSource, UICollectionViewDelegate {
-     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-       return selectedImages.count
-     }
-     
-     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-       guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ImageCell", for: indexPath) as? ImageCell else {
-         return UICollectionViewCell()
-       }
-       
-       cell.configure(with: selectedImages[indexPath.item])
-       
-       cell.deleteAction = { [weak self] in
-         guard let self = self else { return }
-         
-         // 이미지 삭제
-         var newImages = self.selectedImages
-         newImages.remove(at: indexPath.item)
-         self.updateSelectedImages(newImages)
-       }
-       
-       return cell
-     }
+// MARK: - UICollectionViewDelegate, UICollectionViewDataSource
+extension DailyDiaryViewController: UICollectionViewDataSource, UICollectionViewDelegate {
+  func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+    return selectedImages.count
+  }
+  
+  func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+    guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ImageCell", for: indexPath) as? ImageCell else {
+      return UICollectionViewCell()
     }
+    
+    cell.configure(with: selectedImages[indexPath.item])
+    
+    cell.deleteAction = { [weak self] in
+      guard let self = self else { return }
+      
+      // 이미지 삭제
+      var newImages = self.selectedImages
+      newImages.remove(at: indexPath.item)
+      self.updateSelectedImages(newImages)
+    }
+    
+    return cell
+  }
+}
