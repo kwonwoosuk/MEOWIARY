@@ -57,7 +57,7 @@ enum DesignSystem {
       case note = "note.text"
       case add = "plus"
       case archive = "photo.on.rectangle.angled.fill"
-      
+      case settings = "gearshape"
       func toUIImage() -> UIImage {
         return UIImage(systemName: self.rawValue)!
       }
