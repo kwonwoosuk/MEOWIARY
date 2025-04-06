@@ -1,10 +1,9 @@
 //
-//  ImageGalleryCell.swift
+//  GalleryCell.swift
 //  MEOWIARY
 //
 //  Created by 권우석 on 4/3/25.
 //
-
 
 import UIKit
 import RxSwift
@@ -28,9 +27,32 @@ final class GalleryCell: UICollectionViewCell {
   
   private let overlayView: UIView = {
     let view = UIView()
-    view.backgroundColor = UIColor.black.withAlphaComponent(0.3)
-    view.isHidden = true
+    view.backgroundColor = UIColor.black.withAlphaComponent(0.2)
     return view
+  }()
+  
+  private let infoContainer: UIView = {
+    let view = UIView()
+    view.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+    view.layer.cornerRadius = 8
+    return view
+  }()
+  
+  private let dateLabel: UILabel = {
+    let label = UILabel()
+    label.textColor = .white
+    label.font = DesignSystem.Font.Weight.bold(size: DesignSystem.Font.Size.small)
+    label.textAlignment = .left
+    return label
+  }()
+  
+  private let notesLabel: UILabel = {
+    let label = UILabel()
+    label.textColor = .white
+    label.font = DesignSystem.Font.Weight.regular(size: DesignSystem.Font.Size.small)
+    label.textAlignment = .left
+    label.numberOfLines = 6
+    return label
   }()
   
   private let favoriteButton: UIButton = {
@@ -51,18 +73,6 @@ final class GalleryCell: UICollectionViewCell {
     return button
   }()
   
-  private let dateLabel: UILabel = {
-    let label = UILabel()
-    label.textColor = .white
-    label.font = DesignSystem.Font.Weight.regular(size: DesignSystem.Font.Size.small)
-    label.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-    label.layer.cornerRadius = 8
-    label.clipsToBounds = true
-    label.textAlignment = .center
-    label.isHidden = true
-    return label
-  }()
-  
   // MARK: - Initialization
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -76,18 +86,33 @@ final class GalleryCell: UICollectionViewCell {
   override func prepareForReuse() {
     super.prepareForReuse()
     imageView.image = nil
-    disposeBag = DisposeBag()
     dateLabel.text = nil
+    notesLabel.text = nil
+    disposeBag = DisposeBag()
+    favoriteButton.setImage(UIImage(systemName: "heart"), for: .normal)
   }
   
   // MARK: - Setup
   private func setupUI() {
+    // 셀 자체 설정
+    contentView.layer.cornerRadius = 12
+    contentView.clipsToBounds = true
+    contentView.backgroundColor = .white
+    contentView.layer.shadowColor = UIColor.black.cgColor
+    contentView.layer.shadowOpacity = 0.1
+    contentView.layer.shadowOffset = CGSize(width: 0, height: 2)
+    contentView.layer.shadowRadius = 4
+    
+    // 뷰 추가
     contentView.addSubview(imageView)
     contentView.addSubview(overlayView)
+    contentView.addSubview(infoContainer)
+    infoContainer.addSubview(dateLabel)
+    infoContainer.addSubview(notesLabel)
     contentView.addSubview(favoriteButton)
     contentView.addSubview(shareButton)
-    contentView.addSubview(dateLabel)
     
+    // 레이아웃 설정
     imageView.snp.makeConstraints { make in
       make.edges.equalToSuperview()
     }
@@ -96,25 +121,38 @@ final class GalleryCell: UICollectionViewCell {
       make.edges.equalToSuperview()
     }
     
-    favoriteButton.snp.makeConstraints { make in
-      make.bottom.equalToSuperview().offset(-8)
+    infoContainer.snp.makeConstraints { make in
+      make.top.equalToSuperview().offset(8)
       make.leading.equalToSuperview().offset(8)
-      make.width.height.equalTo(30)
-    }
-    
-    shareButton.snp.makeConstraints { make in
-      make.bottom.equalToSuperview().offset(-8)
       make.trailing.equalToSuperview().offset(-8)
-      make.width.height.equalTo(30)
     }
     
     dateLabel.snp.makeConstraints { make in
-      make.top.equalToSuperview().offset(8)
+      make.top.equalToSuperview().offset(6)
       make.leading.equalToSuperview().offset(8)
-      make.height.equalTo(20)
-      make.width.equalTo(80)
+      make.trailing.equalToSuperview().offset(-8)
     }
     
+    notesLabel.snp.makeConstraints { make in
+      make.top.equalTo(dateLabel.snp.bottom).offset(4)
+      make.leading.equalToSuperview().offset(8)
+      make.trailing.equalToSuperview().offset(-8)
+      make.bottom.equalToSuperview().offset(-6)
+    }
+    
+    favoriteButton.snp.makeConstraints { make in
+      make.bottom.equalToSuperview().offset(-12)
+      make.leading.equalToSuperview().offset(12)
+      make.width.height.equalTo(32)
+    }
+    
+    shareButton.snp.makeConstraints { make in
+      make.bottom.equalToSuperview().offset(-12)
+      make.trailing.equalToSuperview().offset(-12)
+      make.width.height.equalTo(32)
+    }
+    
+    // 버튼 액션 바인딩
     favoriteButton.rx.tap
       .bind(to: favoriteButtonTap)
       .disposed(by: disposeBag)
@@ -122,54 +160,45 @@ final class GalleryCell: UICollectionViewCell {
     shareButton.rx.tap
       .bind(to: shareButtonTap)
       .disposed(by: disposeBag)
-    
-    // 셀 호버 효과 (터치 시 오버레이 표시)
-    let touchDown = UILongPressGestureRecognizer(target: self, action: #selector(handleTouchDown(_:)))
-    touchDown.minimumPressDuration = 0.1
-    self.addGestureRecognizer(touchDown)
   }
   
   // MARK: - Configuration
   func configure(with imageData: GalleryViewModel.ImageData, imageManager: ImageManager) {
-      // 썸네일 이미지 로드
-      if let image = imageManager.loadThumbnailImage(from: imageData.thumbnailPath) {
-        imageView.image = image
-      } else {
-        // 기본 이미지 설정
-        imageView.image = UIImage(systemName: "photo")
-        print("썸네일 로드 실패: \(imageData.thumbnailPath)")
-      }
-      
-      // 즐겨찾기 상태 반영
-      let heartImageName = imageData.isFavorite ? "heart.fill" : "heart"
-      favoriteButton.setImage(UIImage(systemName: heartImageName), for: .normal)
-      
-      // 날짜 포맷
-      let dateFormatter = DateFormatter()
-      dateFormatter.dateFormat = "yyyy.MM.dd"
-      dateLabel.text = dateFormatter.string(from: imageData.createdAt)
+    // 썸네일 이미지 로드
+    if let image = imageManager.loadThumbnailImage(from: imageData.thumbnailPath) {
+      imageView.image = image
+    } else {
+      // 기본 이미지 설정
+      imageView.image = UIImage(systemName: "photo")
     }
+    
+    // 즐겨찾기 상태 반영
+    updateFavoriteButton(isFavorite: imageData.isFavorite)
+    
+    // 날짜 포맷
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateFormat = "yyyy.MM.dd"
+    dateLabel.text = dateFormatter.string(from: imageData.createdAt)
+    
+    // 노트 텍스트 설정
+    if let notes = imageData.notes, !notes.isEmpty {
+      notesLabel.text = notes
+      infoContainer.isHidden = false
+    } else {
+      notesLabel.text = "내용 없음"
+      infoContainer.isHidden = false
+    }
+  }
   
-  // MARK: - Actions
-  @objc private func handleTouchDown(_ gesture: UILongPressGestureRecognizer) {
-    switch gesture.state {
-    case .began:
-      // 터치 시작 - 오버레이 표시
-      overlayView.isHidden = false
-      dateLabel.isHidden = false
-      UIView.animate(withDuration: 0.2) {
-        self.favoriteButton.alpha = 1.0
-        self.shareButton.alpha = 1.0
-        self.dateLabel.alpha = 1.0
-      }
-    case .ended, .cancelled:
-      // 터치 종료 - 오버레이 숨김
-      UIView.animate(withDuration: 0.2) {
-        self.overlayView.isHidden = true
-        self.dateLabel.isHidden = true
-      }
-    default:
-      break
+  private func updateFavoriteButton(isFavorite: Bool) {
+    let heartImageName = isFavorite ? "heart.fill" : "heart"
+    favoriteButton.setImage(UIImage(systemName: heartImageName), for: .normal)
+    
+    // 즐겨찾기된 경우 버튼 색상 변경
+    if isFavorite {
+      favoriteButton.tintColor = UIColor.systemPink
+    } else {
+      favoriteButton.tintColor = .white
     }
   }
 }

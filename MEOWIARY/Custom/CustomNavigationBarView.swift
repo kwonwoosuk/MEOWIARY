@@ -14,6 +14,7 @@ enum NavigationButtonType {
   case back
   case close
   case none
+  case custom(image: UIImage)
   
   var image: UIImage? {
     switch self {
@@ -23,6 +24,8 @@ enum NavigationButtonType {
       return UIImage(systemName: "xmark")
     case .none:
       return nil
+    case .custom(let image):
+      return image
     }
   }
 }
@@ -116,21 +119,41 @@ final class CustomNavigationBarView: BaseView {
   
   @objc private func rightButtonTapped() {
     rightButtonSubject.onNext(())
-    // gps를 사용할 수 없는 경우 주소 수동 입력... 근데 이거 메인에서도 사용하는데 주소 검색기반 위치 찾는 로직뷰를 하나로 재사용하면 어떨까?
   }
   
   // MARK: - Public Methods
   func configure(title: String, leftButtonType: NavigationButtonType = .back, rightButtonImage: UIImage? = nil) {
+      titleLabel.text = title
+      titleLabel.font = .systemFont(ofSize: 18, weight: .bold)
+      leftButton.setImage(leftButtonType.image, for: .normal)
+      
+      // 여기가 문제가 있는 부분입니다. == 연산자 대신 패턴 매칭 사용
+      if case .none = leftButtonType {
+          leftButton.isHidden = true
+      } else {
+          leftButton.isHidden = false
+      }
+      
+      if let rightImage = rightButtonImage {
+          rightButton.setImage(rightImage, for: .normal)
+          rightButton.isHidden = false
+      } else {
+          rightButton.isHidden = true
+      }
+  }
+  
+  // 버튼 이미지 업데이트
+  func updateLeftButton(image: UIImage?) {
+    leftButton.setImage(image, for: .normal)
+  }
+  
+  func updateRightButton(image: UIImage?) {
+    rightButton.setImage(image, for: .normal)
+    rightButton.isHidden = image == nil
+  }
+  
+  // 제목 변경
+  func setTitle(_ title: String) {
     titleLabel.text = title
-    titleLabel.font = .systemFont(ofSize: 18, weight: .bold)
-    leftButton.setImage(leftButtonType.image, for: .normal)
-    leftButton.isHidden = leftButtonType == .none
-    
-    if let rightImage = rightButtonImage {
-      rightButton.setImage(rightImage, for: .normal)
-      rightButton.isHidden = false
-    } else {
-      rightButton.isHidden = true
-    }
   }
 }

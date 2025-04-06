@@ -107,13 +107,13 @@ class DayCardRepository: DayCardRepositoryProtocol {
         return result
     }
     
-    func getDayCardsWithImages() -> [DayCard] {
-        let realm = getRealm()
-        let results = realm.objects(DayCard.self)
-            .filter("imageRecord != nil")
-            .sorted(byKeyPath: "date", ascending: false)
-        return Array(results)
-    }
+  func getDayCardsWithImages() -> [DayCard] {
+      let realm = getRealm()
+      let results = realm.objects(DayCard.self)
+          .filter("imageRecords.@count > 0")
+          .sorted(byKeyPath: "date", ascending: false)
+      return Array(results)
+  }
     
     func getAllDayCards() -> [DayCard] {
         let realm = getRealm()

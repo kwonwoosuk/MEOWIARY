@@ -1,3 +1,10 @@
+//
+//  DailyDiaryViewModel.swift
+//  MEOWIARY
+//
+//  Created by 권우석 on 4/3/25.
+//
+
 import Foundation
 import RxSwift
 import RxCocoa
@@ -140,64 +147,64 @@ class DailyDiaryViewModel: BaseViewModel {
         )
     }
     
-    private func saveWithImage(text: String, image: UIImage) -> Observable<Void> {
-        return Observable.create { [weak self] observer in
-            guard let self = self else {
-                observer.onError(NSError(domain: "DailyDiaryViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "ViewModel is nil"]))
-                return Disposables.create()
-            }
-            
-            print("이미지 저장 시작")
-            
-            let imageRecordObservable = self.imageManager.saveImage(image)
-                .flatMap { imageRecord -> Observable<ImageRecord> in
-                    print("이미지 매니저에서 ImageRecord 생성됨: \(imageRecord.id)")
-                    return self.imageRecordRepository.saveImageRecord(imageRecord)
-                }
-            
-            let saveDayCardObservable = imageRecordObservable
-                .flatMap { imageRecord -> Observable<Void> in
-                    let calendar = Calendar.current
-                    let year = calendar.component(.year, from: self.currentDate)
-                    let month = calendar.component(.month, from: self.currentDate)
-                    let day = calendar.component(.day, from: self.currentDate)
-                    
-                    let existingCard = self.dayCardRepository.getDayCardForDate(year: year, month: month, day: day)
-                    let dayCard = existingCard ?? DayCard(date: self.currentDate)
-                    
-                    let realm: Realm
-                    do {
-                        realm = try Realm()
-                    } catch {
-                        return Observable.error(error)
-                    }
-                    do {
-                        try realm.write {
-                            dayCard.notes = text.isEmpty ? nil : text
-                            if existingCard == nil { realm.add(dayCard) }
-                            dayCard.imageRecords.append(imageRecord)
-                        }
-                        return Observable.just(())
-                    } catch {
-                        return Observable.error(error)
-                    }
-                }
-            
-            saveDayCardObservable
-                .subscribe(
-                    onNext: { _ in
-                        print("DayCard 저장 완료 (이미지 포함)")
-                        observer.onNext(())
-                        observer.onCompleted()
-                    },
-                    onError: { error in
-                        print("저장 오류: \(error)")
-                        observer.onError(error)
-                    }
-                )
-                .disposed(by: self.disposeBag)
-            
-            return Disposables.create()
-        }
-    }
+  private func saveWithImage(text: String, image: UIImage) -> Observable<Void> {
+      return Observable.create { [weak self] observer in
+          guard let self = self else {
+              observer.onError(NSError(domain: "DailyDiaryViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "ViewModel is nil"]))
+              return Disposables.create()
+          }
+          
+          print("이미지 저장 시작")
+          
+          let imageRecordObservable = self.imageManager.saveImage(image)
+              .flatMap { imageRecord -> Observable<ImageRecord> in
+                  print("이미지 매니저에서 ImageRecord 생성됨: \(imageRecord.id)")
+                  return self.imageRecordRepository.saveImageRecord(imageRecord)
+              }
+          
+          let saveDayCardObservable = imageRecordObservable
+              .flatMap { imageRecord -> Observable<Void> in
+                  let calendar = Calendar.current
+                  let year = calendar.component(.year, from: self.currentDate)
+                  let month = calendar.component(.month, from: self.currentDate)
+                  let day = calendar.component(.day, from: self.currentDate)
+                  
+                  let existingCard = self.dayCardRepository.getDayCardForDate(year: year, month: month, day: day)
+                  let dayCard = existingCard ?? DayCard(date: self.currentDate)
+                  
+                  let realm: Realm
+                  do {
+                      realm = try Realm()
+                  } catch {
+                      return Observable.error(error)
+                  }
+                  do {
+                      try realm.write {
+                          dayCard.notes = text.isEmpty ? nil : text
+                          if existingCard == nil { realm.add(dayCard) }
+                          dayCard.imageRecords.append(imageRecord)
+                      }
+                      return Observable.just(())
+                  } catch {
+                      return Observable.error(error)
+                  }
+              }
+          
+          saveDayCardObservable
+              .subscribe(
+                  onNext: { _ in
+                      print("DayCard 저장 완료 (이미지 포함)")
+                      observer.onNext(())
+                      observer.onCompleted()
+                  },
+                  onError: { error in
+                      print("저장 오류: \(error)")
+                      observer.onError(error)
+                  }
+              )
+              .disposed(by: self.disposeBag)
+          
+          return Disposables.create()
+      }
+  }
 }
