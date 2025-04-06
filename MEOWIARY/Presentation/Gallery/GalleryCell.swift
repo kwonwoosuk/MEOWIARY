@@ -30,7 +30,7 @@ final class GalleryCell: UICollectionViewCell {
   // 날짜 레이블 (일)
   private let dayLabel: UILabel = {
     let label = UILabel()
-    label.font = DesignSystem.Font.Weight.bold(size: 46)
+    label.font = DesignSystem.Font.Weight.bold(size: 34)
     label.textColor = DesignSystem.Color.Tint.main.inUIColor()
     label.textAlignment = .center
     return label
@@ -65,7 +65,7 @@ final class GalleryCell: UICollectionViewCell {
   // 일기 내용 오버레이 (이미지 위에 텍스트 표시)
   private let textOverlay: UIView = {
     let view = UIView()
-    view.backgroundColor = UIColor.black.withAlphaComponent(0.3)
+    view.backgroundColor = UIColor.black.withAlphaComponent(0.2)
     view.isHidden = true
     return view
   }()
@@ -102,66 +102,73 @@ final class GalleryCell: UICollectionViewCell {
   
   // MARK: - Setup
   private func setupUI() {
-    // 셀 자체 설정
-    contentView.backgroundColor = UIColor(hex: "F9F9F9")
-    contentView.layer.cornerRadius = 16
-    contentView.clipsToBounds = true
-    
-    // 뷰 계층 구조 설정
-    contentView.addSubview(dateContainer)
-    dateContainer.addSubview(dayLabel)
-    dateContainer.addSubview(weekdayLabel)
-    
-    contentView.addSubview(imageContainer)
-    imageContainer.addSubview(imageView)
-    imageContainer.addSubview(textOverlay)
-    textOverlay.addSubview(notesLabel)
-    
-    // 레이아웃 설정
-    dateContainer.snp.makeConstraints { make in
-      make.leading.top.bottom.equalToSuperview().inset(8)
-      make.width.equalTo(120)
-    }
-    
-    dayLabel.snp.makeConstraints { make in
-      make.centerX.equalToSuperview()
-      make.top.equalToSuperview().offset(20)
-    }
-    
-    weekdayLabel.snp.makeConstraints { make in
-      make.centerX.equalToSuperview()
-      make.top.equalTo(dayLabel.snp.bottom).offset(2)
-      make.bottom.lessThanOrEqualToSuperview().offset(-8)
-    }
-    
-    imageContainer.snp.makeConstraints { make in
-      make.leading.equalTo(dateContainer.snp.trailing).offset(8)
-      make.top.trailing.bottom.equalToSuperview().inset(8)
-    }
-    
-    imageView.snp.makeConstraints { make in
-      make.edges.equalToSuperview()
-    }
-    
-    textOverlay.snp.makeConstraints { make in
-      make.edges.equalToSuperview()
-    }
-    
-    notesLabel.snp.makeConstraints { make in
-      make.center.equalToSuperview()
-      make.leading.trailing.equalToSuperview().inset(12)
-    }
-    
-    // 버튼 액션 바인딩
-    let tapGesture = UITapGestureRecognizer()
-    tapGesture.numberOfTapsRequired = 2
-    imageContainer.addGestureRecognizer(tapGesture)
-    
-    tapGesture.rx.event
-        .subscribe(onNext: { [weak self] _ in
-            self?.favoriteButtonTap.onNext(())
-        })
-        .disposed(by: disposeBag)
+      // 셀 자체 설정
+      contentView.backgroundColor = UIColor(hex: "F9F9F9")
+      contentView.layer.cornerRadius = 16
+      contentView.clipsToBounds = false // 그림자가 잘리지 않도록 false로 설정
+      
+      // 그림자 설정
+      contentView.layer.shadowColor = UIColor.black.cgColor
+      contentView.layer.shadowOpacity = 0.2
+      contentView.layer.shadowOffset = CGSize(width: 0, height: 3)
+      contentView.layer.shadowRadius = 4
+      contentView.layer.masksToBounds = false
+      
+      // 뷰 계층 구조 설정
+      contentView.addSubview(dateContainer)
+      dateContainer.addSubview(dayLabel)
+      dateContainer.addSubview(weekdayLabel)
+      
+      contentView.addSubview(imageContainer)
+      imageContainer.addSubview(imageView)
+      imageContainer.addSubview(textOverlay)
+      textOverlay.addSubview(notesLabel)
+      
+      // 레이아웃 설정
+      dateContainer.snp.makeConstraints { make in
+        make.leading.top.bottom.equalToSuperview().inset(8)
+        make.width.equalTo(80)
+      }
+      
+      dayLabel.snp.makeConstraints { make in
+        make.centerX.equalToSuperview()
+        make.top.equalToSuperview().offset(20)
+      }
+      
+      weekdayLabel.snp.makeConstraints { make in
+        make.centerX.equalToSuperview()
+        make.top.equalTo(dayLabel.snp.bottom).offset(2)
+        make.bottom.lessThanOrEqualToSuperview().offset(-8)
+      }
+      
+      imageContainer.snp.makeConstraints { make in
+        make.leading.equalTo(dateContainer.snp.trailing).offset(8)
+        make.top.trailing.bottom.equalToSuperview().inset(8)
+      }
+      
+      imageView.snp.makeConstraints { make in
+        make.edges.equalToSuperview()
+      }
+      
+      textOverlay.snp.makeConstraints { make in
+        make.edges.equalToSuperview()
+      }
+      
+      notesLabel.snp.makeConstraints { make in
+        make.center.equalToSuperview()
+        make.leading.trailing.equalToSuperview().inset(12)
+      }
+      
+      // 버튼 액션 바인딩
+      let tapGesture = UITapGestureRecognizer()
+      tapGesture.numberOfTapsRequired = 2
+      imageContainer.addGestureRecognizer(tapGesture)
+      
+      tapGesture.rx.event
+          .subscribe(onNext: { [weak self] _ in
+              self?.favoriteButtonTap.onNext(())
+          })
+          .disposed(by: disposeBag)
   }
   
   // MARK: - Configuration

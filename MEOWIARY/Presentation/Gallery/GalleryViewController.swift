@@ -20,7 +20,7 @@ final class GalleryViewController: BaseViewController {
   private var selectedYear: Int = Calendar.current.component(.year, from: Date())
   private var selectedMonth: Int = Calendar.current.component(.month, from: Date())
   
-  private let years: [Int] = Array(2000...2030)
+  private let years: [Int] = Array(2000...2100)
   private let months: [String] = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"]
   
   // MARK: - UI Components
@@ -30,12 +30,7 @@ final class GalleryViewController: BaseViewController {
     return view
   }()
   
-  //  private let backButton: UIButton = {
-  //    let button = UIButton(type: .system)
-  //    button.setImage(UIImage(systemName: "chevron.left"), for: .normal)
-  //    button.tintColor = DesignSystem.Color.Tint.text.inUIColor()
-  //    return button
-  //  }()
+
   
   private let yearMonthButton: UIButton = {
     let button = UIButton(type: .system)
