@@ -12,46 +12,60 @@ import RxCocoa
 import SnapKit
 
 final class DetailViewController: BaseViewController {
-    
+  
   // MARK: - Properties
   private let disposeBag = DisposeBag()
   private let viewModel: DetailViewModel
-    
+  private var loadedImages: [UIImage?] = [] // 로드된 이미지를 저장
+  var onDelete: (() -> Void)?
+  
   // MARK: - UI Components
   private let navigationBarView = CustomNavigationBarView()
-    
-  private let scrollView: UIScrollView = {
-    let scrollView = UIScrollView()
-    scrollView.showsVerticalScrollIndicator = false
-    scrollView.minimumZoomScale = 1.0
-    scrollView.maximumZoomScale = 3.0
-    return scrollView
+  
+  private lazy var collectionView: UICollectionView = {
+    let layout = UICollectionViewFlowLayout()
+    layout.scrollDirection = .horizontal
+    layout.minimumLineSpacing = 0
+    layout.minimumInteritemSpacing = 0
+    let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+    collectionView.isPagingEnabled = true
+    collectionView.showsHorizontalScrollIndicator = false
+    collectionView.backgroundColor = .white
+    return collectionView
   }()
-    
-  private let imageView: UIImageView = {
-    let imageView = UIImageView()
-    imageView.contentMode = .scaleAspectFit
-    return imageView
+  
+  private let pageControl: UIPageControl = {
+    let pageControl = UIPageControl()
+    pageControl.currentPageIndicatorTintColor = .white
+    pageControl.pageIndicatorTintColor = .white.withAlphaComponent(0.5)
+    return pageControl
   }()
-    
+  
   private let dateLabel: UILabel = {
     let label = UILabel()
     label.textColor = DesignSystem.Color.Tint.text.inUIColor()
     label.font = DesignSystem.Font.Weight.bold(size: DesignSystem.Font.Size.medium)
     return label
   }()
-    
+  
   private let favoriteButton: UIButton = {
     let button = UIButton(type: .system)
     button.setImage(UIImage(systemName: "heart"), for: .normal)
     button.tintColor = DesignSystem.Color.Tint.main.inUIColor()
     return button
   }()
-    
+  
   private let shareButton: UIButton = {
     let button = UIButton(type: .system)
     button.setImage(UIImage(systemName: "square.and.arrow.up"), for: .normal)
     button.tintColor = DesignSystem.Color.Tint.action.inUIColor()
+    return button
+  }()
+  
+  private let deleteButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.setImage(UIImage(systemName: "trash"), for: .normal)
+    button.tintColor = .systemRed
     return button
   }()
   
@@ -63,33 +77,45 @@ final class DetailViewController: BaseViewController {
     label.isHidden = true
     return label
   }()
-    
+  
+  private let loadingIndicator: UIActivityIndicatorView = {
+    let indicator = UIActivityIndicatorView(style: .large)
+    indicator.color = .gray
+    indicator.hidesWhenStopped = true
+    return indicator
+  }()
+  
   // MARK: - Initialization
-  init(imageData: GalleryViewModel.ImageData, imageManager: ImageManager) {
-    self.viewModel = DetailViewModel(imageData: imageData, imageManager: imageManager)
+  init(year: Int, month: Int, day: Int, imageManager: ImageManager) {
+    self.viewModel = DetailViewModel(year: year, month: month, day: day, imageManager: imageManager)
     super.init(nibName: nil, bundle: nil)
   }
-    
+  
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
-    
+  
   // MARK: - Lifecycle
   override func viewDidLoad() {
     super.viewDidLoad()
+    collectionView.register(DetailCell.self, forCellWithReuseIdentifier: "DetailCell")
+    collectionView.delegate = self
+    collectionView.dataSource = self
   }
-    
+  
   // MARK: - UI Setup
   override func configureHierarchy() {
     view.addSubview(navigationBarView)
-    view.addSubview(scrollView)
-    scrollView.addSubview(imageView)
+    view.addSubview(collectionView)
+    view.addSubview(pageControl)
     view.addSubview(dateLabel)
     view.addSubview(favoriteButton)
     view.addSubview(shareButton)
+    view.addSubview(deleteButton)
     view.addSubview(notesLabel)
+    view.addSubview(loadingIndicator)
   }
-    
+  
   override func configureLayout() {
     navigationBarView.snp.makeConstraints { make in
       make.top.equalTo(view.safeAreaLayoutGuide.snp.top)
@@ -97,28 +123,38 @@ final class DetailViewController: BaseViewController {
       make.height.equalTo(50)
     }
     
-    scrollView.snp.makeConstraints { make in
+    collectionView.snp.makeConstraints { make in
       make.top.equalTo(navigationBarView.snp.bottom)
       make.leading.trailing.equalToSuperview()
-      make.bottom.equalTo(dateLabel.snp.top).offset(-DesignSystem.Layout.standardMargin)
+      make.height.equalTo(view.snp.width) // 정사각형 비율 유지
     }
     
-    imageView.snp.makeConstraints { make in
-      make.edges.equalToSuperview()
-      make.width.equalTo(scrollView.snp.width)
-      make.height.equalTo(scrollView.snp.height)
+    pageControl.snp.makeConstraints { make in
+      make.centerX.equalToSuperview()
+      make.top.equalTo(collectionView.snp.bottom).offset(8)
     }
     
-    // 메모 텍스트 레이블
     notesLabel.snp.makeConstraints { make in
+      make.top.equalTo(pageControl.snp.bottom).offset(DesignSystem.Layout.standardMargin)
       make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
       make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
-      make.bottom.equalTo(dateLabel.snp.top).offset(-DesignSystem.Layout.smallMargin)
     }
     
     dateLabel.snp.makeConstraints { make in
       make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
       make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom).offset(-DesignSystem.Layout.standardMargin)
+    }
+    
+    deleteButton.snp.makeConstraints { make in
+      make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
+      make.centerY.equalTo(dateLabel)
+      make.width.height.equalTo(30)
+    }
+    
+    shareButton.snp.makeConstraints { make in
+      make.trailing.equalTo(deleteButton.snp.leading).offset(-DesignSystem.Layout.standardMargin)
+      make.centerY.equalTo(dateLabel)
+      make.width.height.equalTo(30)
     }
     
     favoriteButton.snp.makeConstraints { make in
@@ -127,41 +163,87 @@ final class DetailViewController: BaseViewController {
       make.width.height.equalTo(30)
     }
     
-    shareButton.snp.makeConstraints { make in
-      make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
-      make.centerY.equalTo(dateLabel)
-      make.width.height.equalTo(30)
+    loadingIndicator.snp.makeConstraints { make in
+      make.center.equalTo(collectionView)
     }
   }
-    
+  
   override func configureView() {
     view.backgroundColor = .white
-    
-    // 네비게이션 바 설정
     navigationBarView.configure(title: "사진 상세", leftButtonType: .back)
-    
-    // 스크롤 뷰 델리게이트 설정
-    scrollView.delegate = self
   }
-    
+  
   // MARK: - Binding
   override func bind() {
-    // 뷰 모델과 바인딩
-    let viewDidLoadObservable = Observable.just(())
-    
     let input = DetailViewModel.Input(
-      viewDidLoad: viewDidLoadObservable,
+      viewDidLoad: Observable.just(()),
       favoriteButtonTap: favoriteButton.rx.tap.asObservable(),
-      shareButtonTap: shareButton.rx.tap.asObservable()
+      shareButtonTap: shareButton.rx.tap.asObservable(),
+      deleteButtonTap: deleteButton.rx.tap.asObservable(),
+      currentIndex: collectionView.rx.didEndDecelerating
+        .map { [weak self] _ -> Int in
+          guard let self = self else { return 0 }
+          let offsetX = self.collectionView.contentOffset.x
+          let width = self.collectionView.frame.width
+          return Int(round(offsetX / width))
+        }
+        .startWith(0)
     )
     
     let output = viewModel.transform(input: input)
     
-    // 이미지 바인딩
-    output.image
-      .drive(onNext: { [weak self] image in
-        self?.imageView.image = image
+    // 이미지 데이터 바인딩
+    output.imageRecords
+      .drive(onNext: { [weak self] imageRecords in
+        guard let self = self else { return }
+        // 로딩 시작 전 UI 업데이트
+        DispatchQueue.main.async {
+          self.loadedImages = [] // 초기화
+          self.collectionView.reloadData() // 데이터 초기화
+          self.pageControl.numberOfPages = imageRecords.count
+          self.pageControl.currentPage = 0
+          self.pageControl.isHidden = imageRecords.isEmpty
+          self.collectionView.isHidden = true
+          self.loadingIndicator.startAnimating()
+        }
+        
+        // Task를 사용하여 모든 이미지를 비동기적으로 로드
+        Task {
+          var images: [UIImage?] = []
+          for imageRecord in imageRecords {
+            print("이미지 경로: \(String(describing: imageRecord.originalImagePath))")
+            let image = await self.viewModel.imageManager.loadOriginalImageAsync(from: imageRecord.originalImagePath)
+            if image == nil {
+              print("이미지 로드 실패: \(String(describing: imageRecord.originalImagePath))")
+            }
+            images.append(image)
+          }
+          
+          // 메인 스레드에서 UI 업데이트
+          await MainActor.run {
+            self.loadedImages = images
+            self.collectionView.reloadData()
+            self.collectionView.isHidden = false
+            self.loadingIndicator.stopAnimating()
+            
+            // 이미지가 없는 경우 알림 표시
+            if images.allSatisfy({ $0 == nil }) && !images.isEmpty {
+              let alert = UIAlertController(title: "오류", message: "이미지를 로드할 수 없습니다.", preferredStyle: .alert)
+              alert.addAction(UIAlertAction(title: "확인", style: .default, handler: nil))
+              self.present(alert, animated: true)
+            }
+          }
+        }
       })
+      .disposed(by: disposeBag)
+    
+    // 페이지 컨트롤 업데이트
+    collectionView.rx.contentOffset
+      .map { [weak self] offset -> Int in
+        guard let self = self, self.collectionView.frame.width > 0 else { return 0 }
+        return Int(round(offset.x / self.collectionView.frame.width))
+      }
+      .bind(to: pageControl.rx.currentPage)
       .disposed(by: disposeBag)
     
     // 날짜 바인딩
@@ -188,55 +270,89 @@ final class DetailViewController: BaseViewController {
       })
       .disposed(by: disposeBag)
     
-    // 네비게이션 바 닫기 버튼
+    // 뒤로가기 버튼
     navigationBarView.leftButtonTapObservable
       .subscribe(onNext: { [weak self] in
         self?.dismiss(animated: true)
       })
       .disposed(by: disposeBag)
     
-    // 공유 버튼 액션
-    shareButton.rx.tap
-      .subscribe(onNext: { [weak self] in
-        guard let self = self, let image = self.viewModel.getShareImage() else { return }
-        
-        let activityViewController = UIActivityViewController(
-          activityItems: [image],
-          applicationActivities: nil
-        )
-        
-        // iPad 호환성
-        if let popoverController = activityViewController.popoverPresentationController {
-          popoverController.sourceView = self.shareButton
-          popoverController.sourceRect = self.shareButton.bounds
-        }
-        
-        self.present(activityViewController, animated: true)
+    // 삭제 후 닫기
+    output.dismiss
+      .drive(onNext: { [weak self] in
+        self?.dismiss(animated: true)
       })
       .disposed(by: disposeBag)
+    
+    // 삭제 버튼 탭 시 알림 표시
+    deleteButton.rx.tap
+        .subscribe(onNext: { [weak self] in
+            let alert = UIAlertController(
+                title: "삭제 확인",
+                message: "이 날짜의 모든 데이터를 삭제하시겠습니까?",
+                preferredStyle: .alert
+            )
+            
+            alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+            
+            alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { [weak self] _ in
+                guard let self = self else { return }
+                
+                // 삭제 작업 시작 전 로딩 표시 (필요한 경우)
+                // self.showLoadingIndicator()
+                
+                self.viewModel.deleteCurrentDayCards()
+                    .subscribe(
+                        onNext: { [weak self] _ in
+                            print("삭제 성공")
+                            // 로딩 표시 숨기기 (필요한 경우)
+                            // self?.hideLoadingIndicator()
+                            self?.onDelete?()
+                            self?.dismiss(animated: true)
+                        },
+                        onError: { [weak self] error in
+                            print("삭제 실패: \(error)")
+                            // 로딩 표시 숨기기 (필요한 경우)
+                            // self?.hideLoadingIndicator()
+                            self?.showErrorAlert(message: "삭제 중 오류가 발생했습니다")
+                        }
+                    )
+                    .disposed(by: self.disposeBag)
+            })
+            
+            self?.present(alert, animated: true)
+        })
+        .disposed(by: disposeBag)
   }
   
   private func updateFavoriteButtonUI(isFavorite: Bool) {
     let imageName = isFavorite ? "heart.fill" : "heart"
     favoriteButton.setImage(UIImage(systemName: imageName), for: .normal)
-    
-    // 즐겨찾기된 경우 색상 강조
-    favoriteButton.tintColor = isFavorite ?
-      UIColor.systemPink : DesignSystem.Color.Tint.main.inUIColor()
+    favoriteButton.tintColor = isFavorite ? UIColor.systemPink : DesignSystem.Color.Tint.main.inUIColor()
   }
 }
 
-// MARK: - UIScrollViewDelegate
-extension DetailViewController: UIScrollViewDelegate {
-  func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-    return imageView
+// MARK: - UICollectionViewDataSource, UICollectionViewDelegateFlowLayout
+extension DetailViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+  func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+    return loadedImages.count
   }
-    
-  func scrollViewDidZoom(_ scrollView: UIScrollView) {
-    // 줌 시 이미지 중앙 정렬
-    let offsetX = max((scrollView.bounds.width - scrollView.contentSize.width) * 0.5, 0)
-    let offsetY = max((scrollView.bounds.height - scrollView.contentSize.height) * 0.5, 0)
-    
-    scrollView.contentInset = UIEdgeInsets(top: offsetY, left: offsetX, bottom: 0, right: 0)
+  
+  func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+    let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "DetailCell", for: indexPath) as! DetailCell
+    let image = loadedImages[indexPath.row]
+    if let image = image {
+      cell.imageView.image = image
+    } else {
+      cell.imageView.image = UIImage(systemName: "photo")
+      cell.imageView.tintColor = DesignSystem.Color.Tint.darkGray.inUIColor()
+    }
+    return cell
+  }
+  
+  func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+    return CGSize(width: view.frame.width, height: collectionView.frame.height)
   }
 }
+
+

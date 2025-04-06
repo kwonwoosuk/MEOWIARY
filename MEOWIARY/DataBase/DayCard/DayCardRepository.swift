@@ -135,25 +135,134 @@ class DayCardRepository: DayCardRepositoryProtocol {
         return result
     }
     
-    func deleteDayCard(_ dayCard: DayCard) -> Observable<Void> {
-        return Observable.create { observer in
-            let realm = self.getRealm()
-            
-            do {
-                try realm.write {
-                    let symptoms = Array(dayCard.symptoms) // Make a copy before deleting
-                    realm.delete(symptoms)
-                    realm.delete(dayCard)
-                }
-                observer.onNext(())
-                observer.onCompleted()
-            } catch {
-                observer.onError(error)
-            }
-            
-            return Disposables.create()
-        }
-    }
+  
+  func deleteDayCardsByIDs(_ ids: [String]) -> Observable<Void> {
+      return Observable.create { observer in
+          let realm = self.getRealm()
+          
+          do {
+              // 트랜잭션 시작
+              try realm.write {
+                  // 각 ID에 해당하는 DayCard 찾기 및 삭제 준비
+                  for id in ids {
+                      guard let dayCard = realm.object(ofType: DayCard.self, forPrimaryKey: id) else {
+                          print("DayCardRepository: 경고 - ID \(id)에 해당하는 DayCard를 찾을 수 없음")
+                          continue
+                      }
+                      
+                      // 증상 데이터 가져오기 및 삭제
+                      let symptoms = Array(dayCard.symptoms)
+                      print("DayCardRepository: 증상 삭제 - \(symptoms.count)개")
+                      realm.delete(symptoms)
+                      
+                      // 이미지 레코드 가져오기 및 삭제
+                      let imageRecords = Array(dayCard.imageRecords)
+                      print("DayCardRepository: 이미지 레코드 개수 - \(imageRecords.count)")
+                      
+                      // 파일 시스템의 이미지 파일 삭제 (비동기로 처리하지만 삭제는 확실히)
+                      let imageManager = ImageManager.shared
+                      for imageRecord in imageRecords {
+                          // 삭제할 경로 정보 미리 복사
+                          let originalPath = imageRecord.originalImagePath
+                          let thumbnailPath = imageRecord.thumbnailImagePath
+                          
+                          // 레코드 자체는 Realm에서 삭제
+                          realm.delete(imageRecord)
+                          
+                          // 파일 시스템의 이미지 파일 삭제 (부가적인 작업으로 실패해도 진행)
+                          if originalPath != nil || thumbnailPath != nil {
+                              DispatchQueue.global(qos: .background).async {
+                                  if let originalPath = originalPath {
+                                      imageManager.deleteImageFile(path: originalPath, isOriginal: true)
+                                  }
+                                  if let thumbnailPath = thumbnailPath {
+                                      imageManager.deleteImageFile(path: thumbnailPath, isOriginal: false)
+                                  }
+                              }
+                          }
+                      }
+                      
+                      // DayCard 삭제
+                      print("DayCardRepository: DayCard 삭제 시작 - \(id)")
+                      realm.delete(dayCard)
+                      print("DayCardRepository: DayCard 삭제 완료 - \(id)")
+                  }
+              }
+              
+              print("DayCardRepository: 모든 DayCard 삭제 성공")
+              observer.onNext(())
+              observer.onCompleted()
+          } catch {
+              print("DayCardRepository: 삭제 실패 - \(error.localizedDescription)")
+              observer.onError(error)
+          }
+          
+          return Disposables.create()
+      }
+  }
+  // DayCardRepository.swift의 deleteDayCard 메서드 수정
+  func deleteDayCard(_ dayCard: DayCard) -> Observable<Void> {
+      return Observable.create { observer in
+          let realm = self.getRealm()
+          
+          // 중요: ID를 먼저 복사해두기
+          let dayCardID = dayCard.id
+          print("DayCardRepository: 삭제 시도 - ID: \(dayCardID)")
+          
+          guard let localDayCard = realm.object(ofType: DayCard.self, forPrimaryKey: dayCardID) else {
+              print("DayCardRepository: 오류 - 삭제할 DayCard를 찾을 수 없음 (ID: \(dayCardID))")
+              observer.onError(NSError(domain: "DayCard not found", code: -1, userInfo: nil))
+              return Disposables.create()
+          }
+
+          do {
+              // 중요: Realm의 삭제 작업을 위해 필요한 데이터를 미리 복사해둡니다
+              let symptoms = Array(localDayCard.symptoms)
+              print("DayCardRepository: 증상 삭제 - \(symptoms.count)개")
+              
+              // 이미지 레코드 정보도 미리 복사
+              let imageRecords = Array(localDayCard.imageRecords)
+              let imageRecordPaths: [(id: String, original: String?, thumbnail: String?)] = imageRecords.map {
+                  (id: $0.id, original: $0.originalImagePath, thumbnail: $0.thumbnailImagePath)
+              }
+              print("DayCardRepository: 이미지 레코드 개수 - \(imageRecords.count)개")
+              
+              try realm.write {
+                  // 증상 데이터 삭제
+                  realm.delete(symptoms)
+                  
+                  // 이미지 레코드 삭제
+                  realm.delete(imageRecords)
+                  print("DayCardRepository: 이미지 레코드 삭제 - \(imageRecords.count)개")
+                  
+                  // DayCard 삭제
+                  print("DayCardRepository: DayCard 삭제 - \(dayCardID)")
+                  realm.delete(localDayCard)
+              }
+              
+              // Realm 트랜잭션 외부에서 이미지 파일 삭제 (복사해둔 경로 정보 사용)
+              let imageManager = ImageManager.shared
+              for recordInfo in imageRecordPaths {
+                  if let originalPath = recordInfo.original {
+                      imageManager.deleteImageFile(path: originalPath, isOriginal: true)
+                  }
+                  if let thumbnailPath = recordInfo.thumbnail {
+                      imageManager.deleteImageFile(path: thumbnailPath, isOriginal: false)
+                  }
+                  print("DayCardRepository: 이미지 파일 삭제 - \(recordInfo.id)")
+              }
+              
+              print("DayCardRepository: 삭제 성공 - \(dayCardID)")
+              observer.onNext(())
+              observer.onCompleted()
+          } catch {
+              print("DayCardRepository: 삭제 실패 - \(error.localizedDescription)")
+              observer.onError(error)
+          }
+          
+          return Disposables.create()
+      }
+  }
     
     func addSymptom(_ symptom: Symptom, to dayCard: DayCard) -> Observable<Void> {
         return Observable.create { observer in

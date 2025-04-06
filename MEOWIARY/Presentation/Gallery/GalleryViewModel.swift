@@ -20,6 +20,10 @@ final class GalleryViewModel: BaseViewModel {
   private let imagesRelay = BehaviorRelay<[ImageData]>(value: [])
   private let allImagesRelay = BehaviorRelay<[ImageData]>(value: [])
   
+  // 현재 선택된 년/월
+  private var currentYear: Int = Calendar.current.component(.year, from: Date())
+  private var currentMonth: Int = Calendar.current.component(.month, from: Date())
+  
   // 이미지 데이터 타입 정의
   struct ImageData: Equatable {
     let id: String
@@ -29,6 +33,9 @@ final class GalleryViewModel: BaseViewModel {
     let createdAt: Date
     let dayCardId: String?  // 관련 DayCard ID
     let notes: String?      // 노트 내용 추가
+    let year: Int
+    let month: Int
+    let day: Int
     
     static func == (lhs: ImageData, rhs: ImageData) -> Bool {
       return lhs.id == rhs.id
@@ -38,8 +45,8 @@ final class GalleryViewModel: BaseViewModel {
   // MARK: - Input & Output
   struct Input {
     let viewDidLoad: Observable<Void>
+    let yearMonthSelected: Observable<(Int, Int)>
     let toggleFavoriteFilter: Observable<Bool>
-    let searchQuery: Observable<String>
   }
   
   struct Output {
@@ -53,7 +60,7 @@ final class GalleryViewModel: BaseViewModel {
     input.viewDidLoad
       .flatMap { [weak self] _ -> Observable<[ImageData]> in
         guard let self = self else { return Observable.just([]) }
-        return self.loadImageData()
+        return self.loadImageData(year: self.currentYear, month: self.currentMonth)
       }
       .subscribe(onNext: { [weak self] images in
         guard let self = self else { return }
@@ -62,47 +69,33 @@ final class GalleryViewModel: BaseViewModel {
       })
       .disposed(by: disposeBag)
     
+    // 년월 선택 시 필터링
+    input.yearMonthSelected
+      .subscribe(onNext: { [weak self] (year, month) in
+        guard let self = self else { return }
+        self.currentYear = year
+        self.currentMonth = month
+        
+        self.loadImageData(year: year, month: month)
+          .subscribe(onNext: { [weak self] images in
+            self?.allImagesRelay.accept(images)
+            self?.imagesRelay.accept(images)
+          })
+          .disposed(by: self.disposeBag)
+      })
+      .disposed(by: disposeBag)
+    
     // 즐겨찾기 필터링
     input.toggleFavoriteFilter
       .withLatestFrom(allImagesRelay) { (isFilteringFavorites, allImages) -> [ImageData] in
         if isFilteringFavorites {
-          // 즐겨찾기된 항목만 필터링
           return allImages.filter { $0.isFavorite }
         } else {
-          // 모든 항목 표시
           return allImages
         }
       }
       .subscribe(onNext: { [weak self] filteredImages in
         self?.imagesRelay.accept(filteredImages)
-      })
-      .disposed(by: disposeBag)
-    
-    // 검색 기능
-    input.searchQuery
-      .withLatestFrom(allImagesRelay) { (query, allImages) -> [ImageData] in
-        guard !query.isEmpty else { return allImages }
-        
-        // 검색어로 필터링
-        return allImages.filter { imageData in
-          // 노트 내용에서 검색
-          if let notes = imageData.notes, notes.lowercased().contains(query.lowercased()) {
-            return true
-          }
-          
-          // 날짜 문자열에서 검색
-          let dateFormatter = DateFormatter()
-          dateFormatter.dateFormat = "yyyy년 MM월 dd일"
-          let dateString = dateFormatter.string(from: imageData.createdAt)
-          if dateString.contains(query) {
-            return true
-          }
-          
-          return false
-        }
-      }
-      .subscribe(onNext: { [weak self] searchResults in
-        self?.imagesRelay.accept(searchResults)
       })
       .disposed(by: disposeBag)
     
@@ -115,9 +108,13 @@ final class GalleryViewModel: BaseViewModel {
     )
   }
   
-  func refreshData() {
-    // 데이터 다시 로드
-    loadImageData()
+  // 특정 년/월의 데이터만 불러오기
+  func refreshData(year: Int = Calendar.current.component(.year, from: Date()),
+                   month: Int = Calendar.current.component(.month, from: Date())) {
+    self.currentYear = year
+    self.currentMonth = month
+    
+    loadImageData(year: year, month: month)
       .subscribe(onNext: { [weak self] images in
         guard let self = self else { return }
         self.allImagesRelay.accept(images)
@@ -126,37 +123,8 @@ final class GalleryViewModel: BaseViewModel {
       .disposed(by: disposeBag)
   }
   
-  // 검색 기능 추가
-  func searchImages(query: String) {
-    guard !query.isEmpty else {
-      // 빈 검색어면 모든 이미지 표시
-      imagesRelay.accept(allImagesRelay.value)
-      return
-    }
-    
-    let allImages = allImagesRelay.value
-    let searchResults = allImages.filter { imageData in
-      // 노트 내용에서 검색
-      if let notes = imageData.notes, notes.lowercased().contains(query.lowercased()) {
-        return true
-      }
-      
-      // 날짜 문자열에서 검색
-      let dateFormatter = DateFormatter()
-      dateFormatter.dateFormat = "yyyy년 MM월 dd일"
-      let dateString = dateFormatter.string(from: imageData.createdAt)
-      if dateString.contains(query) {
-        return true
-      }
-      
-      return false
-    }
-    
-    imagesRelay.accept(searchResults)
-  }
-  
   // MARK: - Methods
-  private func loadImageData() -> Observable<[ImageData]> {
+  private func loadImageData(year: Int, month: Int) -> Observable<[ImageData]> {
     return Observable.create { [weak self] observer in
       guard let self = self else {
         observer.onNext([])
@@ -164,41 +132,41 @@ final class GalleryViewModel: BaseViewModel {
         return Disposables.create()
       }
       
-      // Realm에서 모든 DayCard 가져오기
-      let dayCards = self.dayCardRepository.getAllDayCards()
+      // Realm에서 특정 년/월의 DayCard 가져오기
+      let dayCards = self.dayCardRepository.getDayCards(year: year, month: month)
       
-      // ImageData 배열 생성
+      // 날짜별로 그룹화된 대표 이미지 데이터 배열 생성
       var imageDataList: [ImageData] = []
+      let groupedDayCards = Dictionary(grouping: dayCards, by: { $0.day })
       
-      for dayCard in dayCards {
-        // imageRecords 리스트에서 모든 이미지 레코드 처리
-        for imageRecord in dayCard.imageRecords {
-          if let originalPath = imageRecord.originalImagePath,
-             let thumbnailPath = imageRecord.thumbnailImagePath {
-            
-            let fileExists = self.imageManager.checkImageFileExists(path: originalPath)
-            
-            if fileExists {
-              let imageData = ImageData(
-                id: imageRecord.id,
-                originalPath: originalPath,
-                thumbnailPath: thumbnailPath,
-                isFavorite: imageRecord.isFavorite,
-                createdAt: dayCard.date,
-                dayCardId: dayCard.id,
-                notes: dayCard.notes
-              )
-              
-              imageDataList.append(imageData)
-            }
+      for (day, dayCardsInDay) in groupedDayCards.sorted(by: { $0.key > $1.key }) {
+        // 해당 날짜의 첫 번째 DayCard에서 대표 이미지를 선택
+        if let firstDayCard = dayCardsInDay.first,
+           let firstImageRecord = firstDayCard.imageRecords.first,
+           let originalPath = firstImageRecord.originalImagePath,
+           let thumbnailPath = firstImageRecord.thumbnailImagePath {
+          
+          let fileExists = self.imageManager.checkImageFileExists(path: originalPath)
+          
+          if fileExists {
+            let imageData = ImageData(
+              id: firstImageRecord.id,
+              originalPath: originalPath,
+              thumbnailPath: thumbnailPath,
+              isFavorite: firstImageRecord.isFavorite,
+              createdAt: firstDayCard.date,
+              dayCardId: firstDayCard.id,
+              notes: firstDayCard.notes,
+              year: firstDayCard.year,
+              month: firstDayCard.month,
+              day: firstDayCard.day
+            )
+            imageDataList.append(imageData)
           }
         }
       }
       
-      // 최신 이미지가 먼저 표시되도록 정렬
-      let sortedList = imageDataList.sorted { $0.createdAt > $1.createdAt }
-      
-      observer.onNext(sortedList)
+      observer.onNext(imageDataList)
       observer.onCompleted()
       
       return Disposables.create()
@@ -206,12 +174,11 @@ final class GalleryViewModel: BaseViewModel {
   }
   
   // 즐겨찾기 토글
-  func toggleFavorite(imageId: String) {
-    imageRecordRepository.toggleFavorite(imageId: imageId)
-      .subscribe(onNext: { [weak self] in
-        // 즐겨찾기 상태가 변경된 후 데이터 다시 로드
-        self?.refreshData()
+  func toggleFavorite(imageId: String) -> Observable<Void> {
+    return imageRecordRepository.toggleFavorite(imageId: imageId)
+      .do(onNext: { [weak self] in
+        self?.refreshData(year: self?.currentYear ?? Calendar.current.component(.year, from: Date()),
+                         month: self?.currentMonth ?? Calendar.current.component(.month, from: Date()))
       })
-      .disposed(by: disposeBag)
   }
 }

@@ -50,17 +50,53 @@ class ImageManager {
         return FileManager.default.fileExists(atPath: originalURL.path)
     }
     
-    // 이미지 저장 (원본, 썸네일 생성 후 저장)
+    // 원본 이미지 로드
+    func loadOriginalImage(from imagePath: String?) -> UIImage? {
+        guard let imagePath = imagePath else {
+            print("이미지 경로가 nil입니다.")
+            return nil
+        }
+        let fileURL = getOriginalImagesDirectory().appendingPathComponent(imagePath)
+        
+        print("원본 이미지 로드 시도: \(fileURL.path)")
+        
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            if let data = try? Data(contentsOf: fileURL) {
+                print("원본 이미지 로드 성공: \(data.count) 바이트")
+                return UIImage(data: data)
+            } else {
+                print("원본 이미지 로드 실패: 데이터를 읽을 수 없음")
+                return nil
+            }
+        } else {
+            print("원본 이미지 로드 실패: 파일이 존재하지 않음 - \(fileURL.path)")
+            return nil
+        }
+    }
+    
+    // 비동기 이미지 로딩 메서드
+    func loadOriginalImageAsync(from imagePath: String?) async -> UIImage? {
+        guard let imagePath = imagePath else {
+            print("이미지 경로가 nil입니다.")
+            return nil
+        }
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let image = self.loadOriginalImage(from: imagePath)
+                continuation.resume(returning: image)
+            }
+        }
+    }
+    
+    // 나머지 메서드는 변경 없음
     func saveImage(_ image: UIImage) -> Observable<ImageRecord> {
         return Observable.create { observer in
             let imageID = UUID().uuidString
             print("이미지 저장 시작 - 이미지 ID: \(imageID), 크기: \(image.size), 스케일: \(image.scale)")
             
-            // 정규화된 이미지 생성 - 방향 보정
             let normalizedImage = self.normalizeImageOrientation(image)
             print("이미지 방향 정규화 완료")
             
-            // JPEG으로 시도
             if let originalData = normalizedImage.jpegData(compressionQuality: 0.9) {
                 let originalImagePath = "\(imageID).jpg"
                 let thumbnailImagePath = "\(imageID).jpg"
@@ -74,13 +110,11 @@ class ImageManager {
                     try originalData.write(to: originalFileURL)
                     print("원본 이미지 저장 성공: \(originalFileURL.path)")
                     
-                    // 썸네일 생성 및 저장
                     if let thumbnail = self.resizeImage(normalizedImage, targetSize: CGSize(width: 200, height: 200)) {
                         if let thumbnailData = thumbnail.jpegData(compressionQuality: 0.7) {
                             try thumbnailData.write(to: thumbnailFileURL)
                             print("썸네일 저장 성공: \(thumbnailFileURL.path)")
                             
-                            // 이미지 레코드 생성
                             let imageRecord = ImageRecord(originalImagePath: originalImagePath, thumbnailImagePath: thumbnailImagePath)
                             
                             observer.onNext(imageRecord)
@@ -98,7 +132,6 @@ class ImageManager {
                     observer.onError(error)
                 }
             } else {
-                // JPEG 실패 시 PNG로 시도
                 print("JPEG 변환 실패, PNG로 시도")
                 if let originalData = normalizedImage.pngData() {
                     let originalImagePath = "\(imageID).png"
@@ -113,13 +146,11 @@ class ImageManager {
                         try originalData.write(to: originalFileURL)
                         print("PNG 원본 이미지 저장 성공: \(originalFileURL.path)")
                         
-                        // 썸네일 생성 및 저장
                         if let thumbnail = self.resizeImage(normalizedImage, targetSize: CGSize(width: 200, height: 200)) {
                             if let thumbnailData = thumbnail.pngData() {
                                 try thumbnailData.write(to: thumbnailFileURL)
                                 print("PNG 썸네일 저장 성공: \(thumbnailFileURL.path)")
                                 
-                                // 이미지 레코드 생성
                                 let imageRecord = ImageRecord(originalImagePath: originalImagePath, thumbnailImagePath: thumbnailImagePath)
                                 
                                 observer.onNext(imageRecord)
@@ -146,7 +177,6 @@ class ImageManager {
         }
     }
     
-    // 썸네일 이미지 로드
     func loadThumbnailImage(from imagePath: String?) -> UIImage? {
         guard let imagePath = imagePath else { return nil }
         let fileURL = getThumbnailImagesDirectory().appendingPathComponent(imagePath)
@@ -161,29 +191,12 @@ class ImageManager {
         return UIImage(systemName: "photo")
     }
     
-    // 원본 이미지 로드
-    func loadOriginalImage(from imagePath: String?) -> UIImage? {
-        guard let imagePath = imagePath else { return nil }
-        let fileURL = getOriginalImagesDirectory().appendingPathComponent(imagePath)
-        
-        print("원본 이미지 로드 시도: \(fileURL.path)")
-        
-        if let data = try? Data(contentsOf: fileURL) {
-            print("원본 이미지 로드 성공: \(data.count) 바이트")
-            return UIImage(data: data)
-        }
-        print("원본 이미지 로드 실패: 파일이 없음")
-        return nil
-    }
-    
-    // 이미지 리사이징
     func resizeImage(_ image: UIImage, targetSize: CGSize) -> UIImage? {
         let size = image.size
         
         let widthRatio  = targetSize.width  / size.width
         let heightRatio = targetSize.height / size.height
         
-        // 이미지 비율 유지를 위한 스케일 계산
         let scaleFactor = min(widthRatio, heightRatio)
         
         let scaledSize = CGSize(
@@ -199,7 +212,6 @@ class ImageManager {
         return scaledImage
     }
     
-    // 이미지 방향 정규화 (올바른 방향으로 회전)
     func normalizeImageOrientation(_ image: UIImage) -> UIImage {
         if image.imageOrientation == .up {
             return image
@@ -213,41 +225,47 @@ class ImageManager {
         return normalizedImage ?? image
     }
     
-    // 이미지 삭제
-    func deleteImage(imageRecord: ImageRecord?) -> Observable<Void> {
-        return Observable.create { observer in
-            guard let imageRecord = imageRecord else {
-                observer.onNext(())
-                observer.onCompleted()
-                return Disposables.create()
-            }
-            
-            let fileManager = FileManager.default
-            
-            if let originalPath = imageRecord.originalImagePath {
-                let originalURL = self.getOriginalImagesDirectory().appendingPathComponent(originalPath)
-                do {
-                    try fileManager.removeItem(at: originalURL)
-                    print("원본 이미지 삭제 성공: \(originalURL.path)")
-                } catch {
-                    print("원본 이미지 삭제 실패: \(error.localizedDescription)")
-                }
-            }
-            
-            if let thumbnailPath = imageRecord.thumbnailImagePath {
-                let thumbnailURL = self.getThumbnailImagesDirectory().appendingPathComponent(thumbnailPath)
-                do {
-                    try fileManager.removeItem(at: thumbnailURL)
-                    print("썸네일 이미지 삭제 성공: \(thumbnailURL.path)")
-                } catch {
-                    print("썸네일 이미지 삭제 실패: \(error.localizedDescription)")
-                }
-            }
-            
-            observer.onNext(())
-            observer.onCompleted()
-            
-            return Disposables.create()
-        }
-    }
+  func deleteImage(imageRecord: ImageRecord) -> Observable<Void> {
+      return Observable.create { observer in
+          // 경로 정보를 미리 복사해둠
+          let originalPath = imageRecord.originalImagePath
+          let thumbnailPath = imageRecord.thumbnailImagePath
+          
+          // 파일 시스템에서 이미지 파일 삭제
+          let fileManager = FileManager.default
+          
+          // 원본 이미지 파일 삭제
+          if let path = originalPath {
+              self.deleteImageFile(path: path, isOriginal: true)
+          }
+          
+          // 썸네일 이미지 파일 삭제
+          if let path = thumbnailPath {
+              self.deleteImageFile(path: path, isOriginal: false)
+          }
+          
+          observer.onNext(())
+          observer.onCompleted()
+          
+          return Disposables.create()
+      }
+  }
+  
+  // 이미지 파일 직접 삭제 메서드
+  func deleteImageFile(path: String, isOriginal: Bool) {
+      let fileManager = FileManager.default
+      let directory = isOriginal ? getOriginalImagesDirectory() : getThumbnailImagesDirectory()
+      let fileURL = directory.appendingPathComponent(path)
+      
+      do {
+          if fileManager.fileExists(atPath: fileURL.path) {
+              try fileManager.removeItem(at: fileURL)
+              print("ImageManager: 이미지 파일 삭제 성공 - \(fileURL.path)")
+          } else {
+              print("ImageManager: 삭제할 파일이 없음 - \(fileURL.path)")
+          }
+      } catch {
+          print("ImageManager: 파일 삭제 실패 - \(error.localizedDescription)")
+      }
+  }
 }
