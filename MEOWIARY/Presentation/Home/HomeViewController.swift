@@ -15,6 +15,7 @@ final class HomeViewController: BaseViewController {
   // MARK: - Properties
   private let viewModel = HomeViewModel()
   private let disposeBag = DisposeBag()
+  private let dayCardRepository = DayCardRepository()
   private var isFirstLoad = true
   // MARK: - UI Components
   private let navigationBarView = NavigationBarView()
@@ -334,6 +335,24 @@ final class HomeViewController: BaseViewController {
     output.currentYear
       .drive(cardCalendarView.rx.currentYear)
       .disposed(by: disposeBag)
+    
+    cardCalendarView.dateSelected
+                .subscribe(onNext: { [weak self] (year, month, day) in
+                    guard let self = self else { return }
+                    
+                    // 해당 날짜의 DayCard 조회
+                    if let dayCard = self.dayCardRepository.getDayCardForDate(year: year, month: month, day: day),
+                       !dayCard.imageRecords.isEmpty { // 이미지가 존재하는 경우
+                        let detailVC = DetailViewController(year: year, month: month, day: day, imageManager: ImageManager.shared)
+                        detailVC.modalPresentationStyle = .fullScreen
+                        self.present(detailVC, animated: true)
+                    } else { // DayCard가 없거나 이미지가 없는 경우
+                        let diaryVC = DailyDiaryViewController()
+                        diaryVC.modalPresentationStyle = .fullScreen
+                        self.present(diaryVC, animated: true)
+                    }
+                })
+                .disposed(by: disposeBag)
   }
   
   private func flipCardToCalendar() {

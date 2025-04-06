@@ -4,6 +4,7 @@
 //
 
 import UIKit
+import RxSwift
 import SnapKit
 import Kingfisher
 
@@ -18,8 +19,9 @@ final class CardCell: UICollectionViewCell {
   private var year: Int = Calendar.current.component(.year, from: Date())
   private var month: Int = 1
   var isFlipped = false
+  let disposeBag = DisposeBag()
   private var symptomsData: [Int: Bool] = [:]  // Dictionary to track days with symptoms
-  
+  let dateTapped = PublishSubject<(year: Int, month: Int, day: Int)>()
   // MARK: - UI Components
   private let containerView: UIView = {
     let view = UIView()
@@ -346,6 +348,14 @@ final class CardCell: UICollectionViewCell {
     }
   }
   
+  @objc private func dayButtonTapped(_ sender: UIButton) {
+          let day = sender.tag
+          print("Day \(day) selected in \(month)월 \(year)년")
+          
+          // 날짜 선택 이벤트 방출
+          dateTapped.onNext((year: year, month: month, day: day))
+      }
+  
   // MARK: - Calendar UI Creation
   private func createCalendarUI() {
     
@@ -547,12 +557,6 @@ final class CardCell: UICollectionViewCell {
     
     // Bring the text to front
     button.bringSubviewToFront(button.titleLabel!)
-  }
-  
-  // MARK: - Actions
-  @objc private func dayButtonTapped(_ sender: UIButton) {
-    // Handle day selection
-    print("Day \(sender.tag) selected")
   }
   
   // MARK: - Flipping Methods

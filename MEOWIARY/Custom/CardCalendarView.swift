@@ -18,6 +18,7 @@ final class CardCalendarView: BaseView {
   private var pageWidth: CGFloat = 0
   private var dayCardData: [Int: DayCard] = [:]
   private let dayCardRepository = DayCardRepository()
+  let dateSelected = PublishSubject<(year: Int, month: Int, day: Int)>()
   
   public var isCalendarMode = false {
     didSet {
@@ -302,32 +303,32 @@ extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate
   }
   
   func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-    guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CardCell", for: indexPath) as? CardCell else {
-      return UICollectionViewCell()
-    }
-    
-    // 셀 구성
-    let month = indexPath.item + 1
-    
-    // 현재 월의 데이터 가져오기
-    let monthData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
-    
-    cell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
-    
-    // 셀에 고유 태그 설정 (월 기준)
-    cellPrepared(cell: cell, forMonth: month)
-    
-    // 캘린더 모드에 따라 셀 상태 설정
-    if isCalendarMode {
-      // 애니메이션 없이 상태 설정 (이미 애니메이션은 모드 변경 시 적용)
-      cell.flipToCalendar(animated: false)
-    } else {
-      // 애니메이션 없이 상태 설정
-      cell.flipToCard(animated: false)
-    }
-    
-    return cell
-  }
+          guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CardCell", for: indexPath) as? CardCell else {
+              return UICollectionViewCell()
+          }
+          
+          // 셀 구성
+          let month = indexPath.item + 1
+          let monthData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
+          
+          cell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
+          cellPrepared(cell: cell, forMonth: month)
+          
+          // 셀의 dateTapped 이벤트를 수집하여 dateSelected로 전달
+          cell.dateTapped
+              .subscribe(onNext: { [weak self] date in
+                  self?.dateSelected.onNext(date)
+              })
+              .disposed(by: cell.disposeBag) // 셀에 disposeBag이 없으므로 임시로 생성
+          
+          if isCalendarMode {
+              cell.flipToCalendar(animated: false)
+          } else {
+              cell.flipToCard(animated: false)
+          }
+          
+          return cell
+      }
   
   // 스크롤 후 현재 보이는 셀에 대한 처리 추가
   
