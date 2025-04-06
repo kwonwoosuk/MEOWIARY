@@ -41,12 +41,7 @@ final class GalleryViewController: BaseViewController {
     return button
   }()
   
-  //  private let addButton: UIButton = {
-  //    let button = UIButton(type: .system)
-  //    button.setImage(UIImage(systemName: "plus"), for: .normal)
-  //    button.tintColor = DesignSystem.Color.Tint.text.inUIColor()
-  //    return button
-  //  }()
+
   
   private let menuButton: UIButton = {
     let button = UIButton(type: .system)
@@ -147,7 +142,7 @@ final class GalleryViewController: BaseViewController {
     //    navigationView.addSubview(backButton)
     navigationView.addSubview(yearMonthButton)
     //    navigationView.addSubview(addButton)
-    navigationView.addSubview(menuButton)
+//    navigationView.addSubview(menuButton) // 추후 정렬버튼으로 업데이트 예정
     
     view.addSubview(collectionView)
     view.addSubview(emptyView)
@@ -167,29 +162,17 @@ final class GalleryViewController: BaseViewController {
       make.leading.trailing.equalToSuperview()
       make.height.equalTo(50)
     }
-    
-    //    backButton.snp.makeConstraints { make in
-    //      make.leading.equalToSuperview().offset(16)
-    //      make.centerY.equalToSuperview()
-    //      make.width.height.equalTo(24)
-    //    }
-    
+  
     yearMonthButton.snp.makeConstraints { make in
       make.center.equalToSuperview()
       make.height.equalTo(30)
     }
     
-    //    addButton.snp.makeConstraints { make in
-    //      make.trailing.equalTo(menuButton.snp.leading).offset(-16)
-    //      make.centerY.equalToSuperview()
-    //      make.width.height.equalTo(24)
-    //    }
-    
-    menuButton.snp.makeConstraints { make in
-      make.trailing.equalToSuperview().offset(-16)
-      make.centerY.equalToSuperview()
-      make.width.height.equalTo(24)
-    }
+//    menuButton.snp.makeConstraints { make in //  정렬버튼으로 업데이트 예정
+//      make.trailing.equalToSuperview().offset(-16)
+//      make.centerY.equalToSuperview()
+//      make.width.height.equalTo(24)
+//    }
     
     collectionView.snp.makeConstraints { make in
       make.top.equalTo(navigationView.snp.bottom)

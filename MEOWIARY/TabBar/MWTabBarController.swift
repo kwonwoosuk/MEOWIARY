@@ -27,7 +27,7 @@ final class MWTabBarController: UITabBarController {
     configureTabBarController()
     setupTabBarAppearance()
     tabBar.delegate = self
-    createMockDataIfNeeded()
+//    createMockDataIfNeeded()
     DispatchQueue.main.async { [weak self] in
             self?.setupCenterButtonMask()
         }
@@ -237,7 +237,8 @@ final class MWTabBarController: UITabBarController {
     optionView.symptomRecordButtonTapped
       .subscribe(onNext: { [weak self] in
         self?.dismissDiaryOptions()
-        self?.presentSymptomRecordController()
+        self?.showToast(message: "증상기록기능이 곧 지원될 에정입니다...")
+//        self?.presentSymptomRecordController()
       })
       .disposed(by: disposeBag)
     
@@ -316,13 +317,13 @@ extension MWTabBarController: UITabBarControllerDelegate {
       return false // 실제 탭 선택은 방지
     }
     
-    if viewController == tabBarController.viewControllers?[2] {
-            // 디버깅용: 매번 테스트 데이터 새로 생성 (선택적)
-            // UserDefaults.standard.set(false, forKey: "mockDataCreated")
-            
-            // 테스트 데이터 생성
-            createMockDataIfNeeded()
-        }
+//    if viewController == tabBarController.viewControllers?[2] {
+//            // 디버깅용: 매번 테스트 데이터 새로 생성 (선택적)
+//            // UserDefaults.standard.set(false, forKey: "mockDataCreated")
+//            
+//            // 테스트 데이터 생성
+//            createMockDataIfNeeded()
+//        }
     return true
   }
 }

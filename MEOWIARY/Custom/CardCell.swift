@@ -318,9 +318,8 @@ final class CardCell: UICollectionViewCell {
       loadMonthBackgroundImage(month: month)
       
       // 캘린더 그리드 업데이트 (플립 상태인 경우만)
-      if isFlipped {
-          createCalendarGrid(with: dayCardData)
-      }
+    createCalendarGrid(with: dayCardData)
+      
   }
   
   // 월별로 다른 색상 적용
@@ -385,18 +384,18 @@ final class CardCell: UICollectionViewCell {
   
   func createCalendarGrid(with dayCardData: [Int: DayCard] = [:]) {
       // 그리드 변경 전에 확인
-      if calendarGridView.bounds.width <= 0 {
-          // 레이아웃이 아직 계산되지 않았으므로 지연 실행
-          DispatchQueue.main.async { [weak self] in
-              self?.createCalendarGrid(with: dayCardData)
-          }
-          return
-      }
+//      if calendarGridView.bounds.width <= 0 {
+//          // 레이아웃이 아직 계산되지 않았으므로 지연 실행
+//          DispatchQueue.main.async { [weak self] in
+//              self?.createCalendarGrid(with: dayCardData)
+//          }
+//          return
+//      }
       
       // Remove previous calendar grid
-      for subview in calendarGridView.subviews {
-          subview.removeFromSuperview()
-      }
+//      for subview in calendarGridView.subviews {
+//          subview.removeFromSuperview()
+//      }
       
       // 년도와 월 설정
       let calendar = Calendar.current
@@ -472,36 +471,6 @@ final class CardCell: UICollectionViewCell {
       }
   }
   
-  private func addImageIndicator(to button: UIButton, imagePath: String) {
-      let isSmallScreen = UIScreen.main.bounds.height <= 667
-      let indicatorSize: CGFloat = isSmallScreen ? 18 : 22
-      
-      let imageView = UIImageView()
-      imageView.contentMode = .scaleAspectFill
-      imageView.clipsToBounds = true
-      imageView.layer.cornerRadius = indicatorSize / 2
-      
-      // 썸네일 이미지 로드
-      if let thumbnail = ImageManager.shared.loadThumbnailImage(from: imagePath) {
-          imageView.image = thumbnail
-      } else {
-          // 기본 이미지로 대체
-          imageView.image = UIImage(systemName: "photo")
-          imageView.tintColor = .white
-          imageView.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
-      }
-      
-      button.addSubview(imageView)
-      imageView.frame = CGRect(
-          x: (button.frame.width - indicatorSize) / 2,
-          y: (button.frame.height - indicatorSize) / 2,
-          width: indicatorSize,
-          height: indicatorSize
-      )
-      
-      // 날짜 텍스트를 앞으로 가져와 겹치지 않도록 함
-      button.bringSubviewToFront(button.titleLabel!)
-  }
   
   private func createDayButton(day: Int, weekday: Int) -> UIButton {
     let button = UIButton(type: .system)
