@@ -36,10 +36,11 @@ final class DetailViewModel: BaseViewModel {
     
     struct Output {
         let imageRecords: Driver<[ImageRecord]>
-        let dateText: Driver<String>
-        let isFavorite: Driver<Bool>
-        let notesText: Driver<String?>
-        let dismiss: Driver<Void>
+           let dateText: Driver<String>
+           let isFavorite: Driver<Bool>
+           let notesText: Driver<String?>
+           let deleteConfirmed: AnyObserver<Void>
+           let deleteSuccess: Driver<Void>
     }
     
     // MARK: - Initialization
@@ -70,7 +71,9 @@ final class DetailViewModel: BaseViewModel {
         input.favoriteButtonTap
             .withLatestFrom(currentIndexRelay)
             .subscribe(onNext: { [weak self] index in
-                guard let self = self else { return }
+                guard let self = self,
+                      index < self.imageRecordsRelay.value.count else { return }
+                
                 let imageRecord = self.imageRecordsRelay.value[index]
                 self.imageRecordRepository.toggleFavorite(imageId: imageRecord.id)
                     .subscribe(onNext: { [weak self] in
@@ -80,48 +83,27 @@ final class DetailViewModel: BaseViewModel {
             })
             .disposed(by: disposeBag)
         
-        // 공유
-        input.shareButtonTap
-            .withLatestFrom(currentIndexRelay)
-            .subscribe(onNext: { [weak self] index in
-                guard let self = self else { return }
-                let imageRecord = self.imageRecordsRelay.value[index]
-                if let image = self.imageManager.loadOriginalImage(from: imageRecord.originalImagePath ?? "") {
-                    let activityViewController = UIActivityViewController(activityItems: [image], applicationActivities: nil)
-                    if let topController = UIApplication.shared.windows.first?.rootViewController {
-                        if let popoverController = activityViewController.popoverPresentationController {
-                            popoverController.sourceView = topController.view
-                            popoverController.sourceRect = CGRect(x: topController.view.bounds.midX, y: topController.view.bounds.midY, width: 0, height: 0)
-                            popoverController.permittedArrowDirections = []
-                        }
-                        topController.present(activityViewController, animated: true)
-                    }
-                }
-            })
-            .disposed(by: disposeBag)
+        // 공유 버튼 - ViewModel에서는 현재 이미지 정보만 제공
+        let currentImageRecord = Observable.combineLatest(imageRecordsRelay, currentIndexRelay)
+            .map { records, index -> ImageRecord? in
+                guard index < records.count else { return nil }
+                return records[index]
+            }
         
-        // 삭제
-      // DetailViewModel.swift의 transform 메서드 내 dismiss 부분
-      let dismiss = input.deleteButtonTap
-          .flatMap { [weak self] _ -> Observable<Void> in
-              guard let self = self else { return Observable.just(()) }
-              
-              let dayCards = self.dayCardRepository.getDayCards(year: self.year, month: self.month)
-              let targetDayCards = dayCards.filter { $0.day == self.day }
-              
-              if targetDayCards.isEmpty {
-                  print("삭제할 DayCard가 없습니다")
-                  return Observable.just(())
-              }
-              
-              // 순차적으로 DayCard 삭제하고 마지막에 완료 신호 반환
-              return Observable.from(targetDayCards)
-                  .concatMap { card -> Observable<Void> in
-                      print("DayCard 삭제 진행: \(card.id)")
-                      return self.dayCardRepository.deleteDayCard(card)
-                  }
-          }
-          .asDriver(onErrorJustReturn: ())
+        // 삭제 버튼 - 비즈니스 로직은 ViewModel에서 처리하되 실행은 외부 트리거로
+        let deleteConfirmed = PublishSubject<Void>()
+        
+        let deleteResult = deleteConfirmed
+            .flatMap { [weak self] _ -> Observable<Void> in
+                guard let self = self else { return Observable.just(()) }
+                return self.deleteCurrentDayCards()
+            }
+            .share()
+        
+        let deleteSuccess = deleteResult
+            .map { _ in () }
+            .asDriver(onErrorDriveWith: .empty())
+        
         // 날짜 포맷팅
         let dateText = "\(year)년 \(month)월 \(day)일"
         
@@ -137,7 +119,8 @@ final class DetailViewModel: BaseViewModel {
             dateText: Driver.just(dateText),
             isFavorite: isFavorite.asDriver(onErrorJustReturn: false),
             notesText: notesRelay.asDriver(),
-            dismiss: dismiss
+            deleteConfirmed: deleteConfirmed.asObserver(),
+            deleteSuccess: deleteSuccess
         )
     }
     
