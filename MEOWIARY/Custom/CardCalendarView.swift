@@ -14,10 +14,11 @@ final class CardCalendarView: BaseView {
     private var currentYear = Calendar.current.component(.year, from: Date())
     private var currentMonth = Calendar.current.component(.month, from: Date())
     private var currentDay = Calendar.current.component(.day, from: Date())
-    private var symptomsData: [Int: Bool] = [:]  // Dictionary to track days with symptoms
     private var pageWidth: CGFloat = 0
     private var dayCardData: [Int: DayCard] = [:]
     private let dayCardRepository = DayCardRepository()
+    private var isShowingSymptoms = false // 증상 모드 활성화 여부
+    private var symptomsData: [Int: [Symptom]] = [:] // 일자별 증상 데이터
     let dateSelected = PublishSubject<(year: Int, month: Int, day: Int)>()
     
     public var isCalendarMode = false {
@@ -266,11 +267,54 @@ final class CardCalendarView: BaseView {
     }
     
     func updateSymptomView(isShowing: Bool) {
-        // 현재 표시된 카드의 증상 표시 업데이트
-        let currentIndex = getCurrentCardIndex()
-        if let currentCell = getCellForIndex(currentIndex) {
-            currentCell.updateSymptomView(isShowing: isShowing)
+        self.isShowingSymptoms = isShowing
+        
+        if isShowing {
+            // 증상 모드 활성화 시 증상 데이터 로드
+            loadSymptomData()
+        } else {
+            // 일반 모드 - 일기 데이터로 갱신
+            updateData(year: currentYear, month: currentMonth)
         }
+        
+        // 현재 보이는 셀 모두 업데이트
+        for i in 0..<12 {
+            if let cell = getCellForIndex(i) {
+                // 모드에 따라 적절한 메시지 표시
+                if isShowingSymptoms {
+                    cell.messageLabel.text = "날짜를 선택하여 증상 기록을 확인하세요."
+                } else {
+                    cell.messageLabel.text = "날짜를 선택해 일기를 작성해보세요."
+                }
+                
+                // 캘린더 모드인 경우만 그리드 다시 그리기
+                if cell.isFlipped {
+                    if isShowingSymptoms {
+                        let monthData = self.symptomsData
+                        let dayCards = self.dayCardRepository.getDayCardsMapForMonth(year: self.currentYear, month: i+1)
+                        cell.createCalendarGrid(with: dayCards)
+                    } else {
+                        let dayCards = self.dayCardRepository.getDayCardsMapForMonth(year: self.currentYear, month: i+1)
+                        cell.createCalendarGrid(with: dayCards)
+                    }
+                }
+            }
+        }
+        
+        print("증상 보기 모드: \(isShowingSymptoms)")
+    }
+    
+    private func loadSymptomData() {
+        // 현재 보이는 월의 증상 데이터 로드
+        let monthlySymptoms = dayCardRepository.getSymptomRecords(year: currentYear, month: currentMonth)
+        self.symptomsData = monthlySymptoms
+        
+        // 로그 출력
+        var symptomCount = 0
+        for (_, symptoms) in symptomsData {
+            symptomCount += symptoms.count
+        }
+        print("증상 데이터 로드: \(symptomCount)개 증상 발견")
     }
     
     func refreshVisibleCells() {
