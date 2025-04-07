@@ -21,7 +21,7 @@ protocol SymptomRepositoryProtocol {
 
 class SymptomRepository: SymptomRepositoryProtocol {
     
-    private let dayCardRepository = DayCardRepository()
+    let dayCardRepository = DayCardRepository()
     
     // 속성으로 저장하지 않고 필요할 때마다 새로운 Realm 인스턴스 생성
     private func getRealm() -> Realm {
