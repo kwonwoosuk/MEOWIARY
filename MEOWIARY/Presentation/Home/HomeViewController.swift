@@ -9,6 +9,7 @@ import UIKit
 import RxSwift
 import RxCocoa
 import SnapKit
+import RealmSwift
 
 final class HomeViewController: BaseViewController {
     
@@ -99,8 +100,14 @@ final class HomeViewController: BaseViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        print("HomeViewController: viewDidLoad 호출됨")
+        print("navigationBarView 설정됨: \(navigationBarView)")
         isFirstLoad = true
-        
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        print("HomeViewController: viewDidLayoutSubviews 호출됨, 뷰 크기: \(view.bounds)")
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -278,6 +285,9 @@ final class HomeViewController: BaseViewController {
                 // CardCalendarView 데이터 갱신
                 self.cardCalendarView.updateData(year: year, month: month)
                 
+                // 현재 모드 확인
+                let isShowingSymptoms = self.viewModel.isShowingSymptomsSubject.value
+                
                 // 필요한 경우 현재 보이는 셀만 명시적으로 업데이트
                 if let currentMonth = self.cardCalendarView.getCurrentMonth(),
                    self.viewModel.yearSubject.value == year &&
@@ -288,8 +298,17 @@ final class HomeViewController: BaseViewController {
                     }
                 }
                 
+                // 증상 모드였다면 증상 데이터도 새로고침
+                if isShowingSymptoms {
+                    self.cardCalendarView.updateSymptomView(isShowing: true)
+                }
+                
                 // 토스트 메시지로 사용자에게 알림
-                self.showToast(message: "일기가 업데이트되었습니다")
+                if let symptomFlag = userInfo["isSymptom"] as? Bool, symptomFlag {
+                    self.showToast(message: "증상 기록이 업데이트되었습니다")
+                } else {
+                    self.showToast(message: "일기가 업데이트되었습니다")
+                }
             })
             .disposed(by: disposeBag)
         
@@ -334,10 +353,19 @@ final class HomeViewController: BaseViewController {
                             self.cardCalendarView.refreshVisibleCells()
                         }
                     }
+                    
+                    // 증상 모드였다면 증상 데이터도 새로고침
+                    if self.viewModel.isShowingSymptomsSubject.value {
+                        self.cardCalendarView.updateSymptomView(isShowing: true)
+                    }
                 }
                 
                 // 토스트 메시지
-                self.showToast(message: "일기가 삭제되었습니다")
+                if let symptomFlag = userInfo["isSymptom"] as? Bool, symptomFlag {
+                    self.showToast(message: "증상 기록이 삭제되었습니다")
+                } else {
+                    self.showToast(message: "일기가 삭제되었습니다")
+                }
             })
             .disposed(by: disposeBag)
         
@@ -412,17 +440,45 @@ final class HomeViewController: BaseViewController {
             .subscribe(onNext: { [weak self] (year, month, day) in
                 guard let self = self else { return }
                 
+                let isShowingSymptoms = self.viewModel.isShowingSymptomsSubject.value
+                
                 // 해당 날짜의 DayCard 조회
-                if let dayCard = self.dayCardRepository.getDayCardForDate(year: year, month: month, day: day),
-                   !dayCard.imageRecords.isEmpty { // 이미지가 존재하는 경우
-                    // 이미지가 있으면 DetailViewController로 이동 (기존 코드)
-                    let detailVC = DetailViewController(year: year, month: month, day: day, imageManager: ImageManager.shared)
-                    detailVC.modalPresentationStyle = .fullScreen
-                    self.present(detailVC, animated: true)
-                } else { // DayCard가 없거나 이미지가 없는 경우
-                    let diaryVC = DailyDiaryViewController(year: year, month: month, day: day)
-                    diaryVC.modalPresentationStyle = .fullScreen
-                    self.present(diaryVC, animated: true)
+                if isShowingSymptoms {
+                    // 증상 모드일 때 - 증상 기록이 있는지 확인
+                    let dayCard = self.dayCardRepository.getDayCardForDate(year: year, month: month, day: day)
+                    // Realm의 List<Symptom>를 배열로 변환
+                    let symptoms = dayCard?.symptoms.map { $0 } ?? []
+                    
+                    if !symptoms.isEmpty {
+                        // 증상 기록이 있으면 SymptomDetailViewController로 이동
+                        let detailVC = SymptomDetailViewController(year: year, month: month, day: day, imageManager: ImageManager.shared)
+                        detailVC.modalPresentationStyle = .fullScreen
+                        detailVC.onDelete = { [weak self] in
+                            // 삭제 후 화면 갱신
+                            Task {
+                                await self?.viewModel.fetchData()
+                            }
+                        }
+                        self.present(detailVC, animated: true)
+                    } else {
+                        // 증상 기록이 없으면 새 증상 기록 화면으로 이동
+                        let recordVC = SymptomRecordViewController(year: year, month: month, day: day)
+                        recordVC.modalPresentationStyle = .fullScreen
+                        self.present(recordVC, animated: true)
+                    }
+                } else {
+                    // 일반 모드일 때 - 기존 로직 유지
+                    if let dayCard = self.dayCardRepository.getDayCardForDate(year: year, month: month, day: day),
+                       !dayCard.imageRecords.isEmpty { // 이미지가 존재하는 경우
+                        // 이미지가 있으면 DetailViewController로 이동
+                        let detailVC = DetailViewController(year: year, month: month, day: day, imageManager: ImageManager.shared)
+                        detailVC.modalPresentationStyle = .fullScreen
+                        self.present(detailVC, animated: true)
+                    } else { // DayCard가 없거나 이미지가 없는 경우
+                        let diaryVC = DailyDiaryViewController(year: year, month: month, day: day)
+                        diaryVC.modalPresentationStyle = .fullScreen
+                        self.present(diaryVC, animated: true)
+                    }
                 }
             })
             .disposed(by: disposeBag)

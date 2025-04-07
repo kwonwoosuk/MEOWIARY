@@ -156,11 +156,16 @@ class SymptomRecordViewModel: BaseViewModel {
                             let month = calendar.component(.month, from: self.currentDate)
                             let day = calendar.component(.day, from: self.currentDate)
                             
-                            // 변경된 날짜 정보와 함께 알림 발송
+                            // 변경된 날짜 정보와 함께 알림 발송 (증상 기록 플래그 추가)
                             NotificationCenter.default.post(
                                 name: Notification.Name(DayCardUpdatedNotification),
                                 object: nil,
-                                userInfo: ["year": year, "month": month, "day": day]
+                                userInfo: [
+                                    "year": year,
+                                    "month": month,
+                                    "day": day,
+                                    "isSymptom": true // 증상 기록임을 표시
+                                ]
                             )
                         },
                         onError: { error in

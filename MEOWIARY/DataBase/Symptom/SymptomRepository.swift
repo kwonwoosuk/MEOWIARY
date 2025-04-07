@@ -54,6 +54,18 @@ class SymptomRepository: SymptomRepositoryProtocol {
             
             if dayCard == nil {
                 dayCard = DayCard(date: date)
+                // 새로운 DayCard를 생성한 경우, 저장해야 함
+                self.dayCardRepository.saveDayCard(dayCard!)
+                    .subscribe(
+                        onNext: { savedDayCard in
+                            // 저장된 DayCard로 교체
+                            dayCard = savedDayCard
+                        },
+                        onError: { error in
+                            observer.onError(error)
+                        }
+                    )
+                    .disposed(by: DisposeBag())
             }
             
             guard let dayCard = dayCard else {
@@ -85,7 +97,6 @@ class SymptomRepository: SymptomRepositoryProtocol {
             return Disposables.create()
         }
     }
-    
     // 특정 날짜의 증상 목록 조회
     func getSymptoms(for date: Date) -> [Symptom] {
         let calendar = Calendar.current

@@ -41,6 +41,14 @@ final class CardCell: UICollectionViewCell {
         return label
     }()
     
+    private let messageLabel: UILabel = {
+        let label = UILabel()
+        label.font = DesignSystem.Font.Weight.regular(size: DesignSystem.Font.Size.regular)
+        label.textAlignment = .center
+        label.textColor = DesignSystem.Color.Tint.darkGray.inUIColor()
+        return label
+    }()
+    
     private let backgroundImageView: UIImageView = {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFill
@@ -60,7 +68,7 @@ final class CardCell: UICollectionViewCell {
     private let optionsButton: UIButton = {
         let button = UIButton(type: .system)
         button.setImage(DesignSystem.Icon.Control.options.toUIImage(), for: .normal)
-        button.tintColor = .white
+        button.tintColor = .clear
         return button
     }()
     
@@ -103,14 +111,7 @@ final class CardCell: UICollectionViewCell {
         return view
     }()
     
-    let messageLabel: UILabel = {
-        let label = UILabel()
-        label.font = DesignSystem.Font.Weight.regular(size: DesignSystem.Font.Size.regular)
-        label.textAlignment = .center
-        label.textColor = DesignSystem.Color.Tint.darkGray.inUIColor()
-        label.text = "날짜를 선택해 일기를 작성해세요."
-        return label
-    }()
+    
     
     // MARK: - Initialization
     override init(frame: CGRect) {
@@ -164,7 +165,6 @@ final class CardCell: UICollectionViewCell {
         // 컨텐츠 뷰 설정
         contentView.clipsToBounds = false
         
-        // 그림자 효과 추가
         contentView.layer.shadowColor = UIColor.black.cgColor
         contentView.layer.shadowOpacity = 0.2
         contentView.layer.shadowOffset = CGSize(width: 0, height: 3)
@@ -430,20 +430,15 @@ final class CardCell: UICollectionViewCell {
                 addTodayIndicator(to: dayButton)
             }
             
-            // 일기 이미지 표시
-            if let dayCard = dayCardData[day], !dayCard.imageRecords.isEmpty,
-               let imageRecord = dayCard.imageRecords.first,
-               let thumbnailPath = imageRecord.thumbnailImagePath {
-                addImageIndicator(to: dayButton, imagePath: thumbnailPath)
-                // 이미지가 있으면 날짜 텍스트 명시적으로 완전히 숨기기
-                dayButton.titleLabel?.isHidden = true
-                dayButton.setTitleColor(.clear, for: .normal)
-            }
-            // 증상 표시 (증상이 있고 이미지가 없는 경우)
-            else if let dayCard = dayCardData[day], !dayCard.symptoms.isEmpty {
-                // 증상이 있으면 날짜 버튼에 증상 표시 (가장 심각한 증상의 색상)
+            if let dayCard = dayCardData[day], !dayCard.symptoms.isEmpty {
                 let maxSeverity = dayCard.symptoms.max { $0.severity < $1.severity }?.severity ?? 1
                 addSymptomIndicator(to: dayButton, severity: maxSeverity)
+            }
+            // 증상이 없고 이미지가 있으면 이미지 표시 (우선순위 2)
+            else if let dayCard = dayCardData[day], !dayCard.imageRecords.isEmpty,
+                    let imageRecord = dayCard.imageRecords.first,
+                    let thumbnailPath = imageRecord.thumbnailImagePath {
+                addImageIndicator(to: dayButton, imagePath: thumbnailPath)
             }
         }
     }
@@ -480,6 +475,9 @@ final class CardCell: UICollectionViewCell {
         let indicator = UIView()
         indicator.backgroundColor = indicatorColor
         indicator.layer.cornerRadius = indicatorSize / 2
+        
+        // 터치 이벤트 비활성화
+        indicator.isUserInteractionEnabled = false
         
         button.addSubview(indicator)
         indicator.frame = CGRect(
@@ -519,6 +517,9 @@ final class CardCell: UICollectionViewCell {
             imageView.clipsToBounds = true
             imageView.layer.cornerRadius = indicatorSize / 2
             imageView.image = thumbnail
+            
+            // 터치 이벤트 비활성화
+            imageView.isUserInteractionEnabled = false
             
             button.addSubview(imageView)
             imageView.frame = CGRect(
@@ -689,19 +690,17 @@ final class CardCell: UICollectionViewCell {
         // 애니메이션 없이 텍스트 즉시 변경
         UIView.performWithoutAnimation {
             if isShowing {
-                messageLabel.text = "선택한 날짜의 증상 사진을 조회할 수 있습니다"
+                messageLabel.text = "날짜를 선택하여 증상 기록을 확인하세요."
             } else {
-                messageLabel.text = "날짜를 선택해 일기를 작성해세요."
+                messageLabel.text = "날짜를 선택해 일기를 작성해보세요."
             }
             messageLabel.setNeedsDisplay()
             messageLabel.layoutIfNeeded()
         }
-        
-        if isShowing {
-            updateCalendarWithSymptoms()
-        } else {
-            resetCalendarSymptoms()
-        }
+    }
+    
+    func getMessageLabel() -> UILabel {
+        return messageLabel
     }
     
     private func updateCalendarWithSymptoms() {

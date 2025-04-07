@@ -32,6 +32,14 @@ final class MWTabBarController: UITabBarController {
             self?.setupCenterButtonMask()
         }
   }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        print("MWTabBarController: viewDidAppear 호출됨")
+        print("TabBar 자식 컨트롤러 수: \(viewControllers?.count ?? 0)")
+        print("TabBar 크기: \(view.bounds)")
+
+    }
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
     
@@ -237,7 +245,6 @@ final class MWTabBarController: UITabBarController {
     optionView.symptomRecordButtonTapped
       .subscribe(onNext: { [weak self] in
         self?.dismissDiaryOptions()
-//        self?.showToast(message: "증상기록기능이 곧 지원될 에정입니다...") // 출시떄 이러면 안되실게요
         self?.presentSymptomRecordController()
       })
       .disposed(by: disposeBag)

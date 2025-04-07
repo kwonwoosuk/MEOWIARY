@@ -42,7 +42,7 @@ class HomeViewModel: BaseViewModel {
   // MARK: - Private Properties
   let yearSubject = BehaviorRelay<Int>(value: Calendar.current.component(.year, from: Date()))
   private let monthSubject = BehaviorRelay<Int>(value: Calendar.current.component(.month, from: Date()))
-  private let isShowingSymptomsSubject = BehaviorRelay<Bool>(value: false)
+  let isShowingSymptomsSubject = BehaviorRelay<Bool>(value: false)
   private let weatherInfoRelay = BehaviorRelay<Weather?>(value: nil)
   private let dayCardRepository: DayCardRepository
   private let weatherService: WeatherService
@@ -189,23 +189,32 @@ class HomeViewModel: BaseViewModel {
     }
   }
   
-  private func toggleView() {
-    let currentValue = isShowingSymptomsSubject.value
-    isShowingSymptomsSubject.accept(!currentValue)
-  }
+    private func toggleView() {
+        let currentValue = isShowingSymptomsSubject.value
+        isShowingSymptomsSubject.accept(!currentValue)
+        
+        // 토글 후 적절한 데이터 로드
+        if !currentValue { // 증상 모드로 변경됨
+            print("증상 기록 모드 활성화")
+        } else { // 일반 모드로 변경됨
+            print("일반 기록 모드 활성화")
+        }
+    }
   
-  private func fetchData() async {
-    // 현재 연도와 월에 대한 데이터 가져오기
-    let year = yearSubject.value
-    let month = monthSubject.value
-    
-    // 필요한 경우 날씨 데이터 가져오기
-    await fetchWeatherData()
-    
-    // 증상 기록 가져오기
-    fetchSymptomRecords(year: year, month: month)
-    fetchDayCardData(year: year, month: month)
-  }
+    func fetchData() async {
+        // 현재 연도와 월에 대한 데이터 가져오기
+        let year = yearSubject.value
+        let month = monthSubject.value
+        
+        // 필요한 경우 날씨 데이터 가져오기
+        await fetchWeatherData()
+        
+        // 증상 기록 가져오기 (증상 모드일 때 사용)
+        fetchSymptomRecords(year: year, month: month)
+        
+        // DayCard 데이터 가져오기 (일반 모드일 때 사용)
+        fetchDayCardData(year: year, month: month)
+    }
   
   private func fetchWeatherData() async {
     let result = await weatherService.fetchCurrentWeather()
@@ -232,10 +241,21 @@ class HomeViewModel: BaseViewModel {
       print("Fetched \(dayCards.count) DayCards for \(year)-\(month)")
   }
   
-  private func fetchSymptomRecords(year: Int, month: Int) {
-    // Realm에서 증상 기록 가져오기
-    let records = dayCardRepository.getSymptomRecords(year: year, month: month)
-    
-    // 증상 기록으로 UI 업데이트
-  }
+    private func fetchSymptomRecords(year: Int, month: Int) {
+        // Realm에서 증상 기록 가져오기
+        let records = dayCardRepository.getSymptomRecords(year: year, month: month)
+        
+        // 증상 기록 갯수 로깅
+        var totalSymptoms = 0
+        for (_, symptoms) in records {
+            totalSymptoms += symptoms.count
+        }
+        print("월간 증상 기록 로드: \(year)년 \(month)월 - 총 \(totalSymptoms)개 증상")
+        
+        // 증상 모드가 활성화되었을 때 UI 업데이트를 위해 사용
+        if isShowingSymptomsSubject.value {
+            // 캘린더 뷰에 증상 데이터 전달 (View Controller에서 처리)
+        }
+    }
+
 }

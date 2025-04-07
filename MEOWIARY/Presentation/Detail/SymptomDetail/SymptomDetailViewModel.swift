@@ -39,7 +39,6 @@ final class SymptomDetailViewModel: BaseViewModel {
         let imageRecords: Driver<[ImageRecord]>
         let dateText: Driver<String>
         let currentSymptom: Driver<Symptom?>
-        let isFavorite: Driver<Bool>
         let notesText: Driver<String?>
         let deleteConfirmed: AnyObserver<Void>
         let deleteSuccess: Driver<[(String?, String?)]>
@@ -108,19 +107,11 @@ final class SymptomDetailViewModel: BaseViewModel {
                 return symptoms[index]
             }
         
-        // 현재 이미지의 즐겨찾기 상태
-        let isFavorite = Observable.combineLatest(imageRecordsRelay, currentIndexRelay)
-            .map { records, index -> Bool in
-                guard index < records.count else { return false }
-                return records[index].isFavorite
-            }
-        
         return Output(
             symptoms: symptomsRelay.asDriver(),
             imageRecords: imageRecordsRelay.asDriver(),
             dateText: Driver.just(dateText),
             currentSymptom: currentSymptom.asDriver(onErrorJustReturn: nil),
-            isFavorite: isFavorite.asDriver(onErrorJustReturn: false),
             notesText: notesRelay.asDriver(),
             deleteConfirmed: deleteConfirmed.asObserver(),
             deleteSuccess: deleteSuccess
@@ -136,15 +127,57 @@ final class SymptomDetailViewModel: BaseViewModel {
                                            userInfo: [NSLocalizedDescriptionKey: "삭제할 증상을 찾을 수 없습니다"]))
         }
         
-        // 삭제 작업 실행
-        return Observable.merge(
+        // 해당 날짜의 DayCard 가져오기
+        guard let dayCard = dayCardRepository.getDayCardForDate(year: year, month: month, day: day) else {
+            return Observable.error(NSError(domain: "SymptomDetailViewModel",
+                                           code: -2,
+                                           userInfo: [NSLocalizedDescriptionKey: "DayCard를 찾을 수 없습니다"]))
+        }
+        
+        // 증상 삭제
+        let deleteSymptoms = Observable.merge(
             symptoms.map { symptom in
                 self.symptomRepository.deleteSymptom(symptom)
             }
         )
-        .toArray()
-        .map { _ in () }
-        .asObservable()
+        
+        // 이미지 삭제
+        let imageRecords = Array(dayCard.imageRecords)
+        let deleteImages = Observable.merge(
+            imageRecords.map { imageRecord in
+                self.imageManager.deleteImage(imageRecord: imageRecord)
+            }
+        )
+        
+        // 증상과 이미지를 순차적으로 삭제
+        return deleteSymptoms
+            .toArray()
+            .asObservable()
+            .flatMap { _ -> Observable<Void> in
+                // 증상 삭제 후 이미지 삭제
+                return deleteImages
+                    .toArray()
+                    .asObservable()
+                    .flatMap { _ -> Observable<Void> in
+                        // DayCard 삭제 (증상과 이미지가 모두 삭제되었으므로)
+                        return self.dayCardRepository.deleteDayCardsByIDs([dayCard.id])
+                    }
+            }
+            .flatMap { _ -> Observable<Void> in
+                // 삭제 후 알림 발송
+                NotificationCenter.default.post(
+                    name: Notification.Name(DayCardDeletedNotification),
+                    object: nil,
+                    userInfo: [
+                        "year": self.year,
+                        "month": self.month,
+                        "day": self.day,
+                        "isSymptom": true, // 증상 기록임을 표시
+                        "forceReload": true
+                    ]
+                )
+                return Observable.just(())
+            }
     }
     
     // MARK: - Private Methods

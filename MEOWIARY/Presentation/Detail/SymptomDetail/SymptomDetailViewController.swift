@@ -134,7 +134,6 @@ final class SymptomDetailViewController: BaseViewController {
     view.addSubview(collectionView)
     view.addSubview(pageControl)
     view.addSubview(dateLabel)
-    view.addSubview(favoriteButton)
     view.addSubview(shareButton)
     view.addSubview(deleteButton)
     view.addSubview(notesLabel)
@@ -142,73 +141,67 @@ final class SymptomDetailViewController: BaseViewController {
   }
   
   override func configureLayout() {
-    navigationBarView.snp.makeConstraints { make in
-      make.top.equalTo(view.safeAreaLayoutGuide.snp.top)
-      make.leading.trailing.equalToSuperview()
-      make.height.equalTo(50)
-    }
-    
-    symptomNameLabel.snp.makeConstraints { make in
-      make.top.equalTo(navigationBarView.snp.bottom).offset(10)
-      make.leading.trailing.equalToSuperview().inset(DesignSystem.Layout.standardMargin)
-      make.height.equalTo(30)
-    }
-    
-    severityIndicator.snp.makeConstraints { make in
-      make.top.equalTo(symptomNameLabel.snp.bottom).offset(8)
-      make.centerX.equalToSuperview()
-      make.width.equalTo(80)
-      make.height.equalTo(24)
-    }
-    
-    severityLabel.snp.makeConstraints { make in
-      make.edges.equalToSuperview()
-    }
-    
-    collectionView.snp.makeConstraints { make in
-      make.top.equalTo(severityIndicator.snp.bottom).offset(16)
-      make.leading.trailing.equalToSuperview()
-      make.height.equalTo(view.snp.width) // 정사각형 비율 유지
-    }
-    
-    pageControl.snp.makeConstraints { make in
-      make.centerX.equalToSuperview()
-      make.top.equalTo(collectionView.snp.bottom).offset(8)
-    }
-    
-    notesLabel.snp.makeConstraints { make in
-      make.top.equalTo(pageControl.snp.bottom).offset(DesignSystem.Layout.standardMargin)
-      make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
-      make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
-    }
-    
-    dateLabel.snp.makeConstraints { make in
-      make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
-      make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom).offset(-DesignSystem.Layout.standardMargin)
-    }
-    
-    deleteButton.snp.makeConstraints { make in
-      make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
-      make.centerY.equalTo(dateLabel)
-      make.width.height.equalTo(30)
-    }
-    
-    shareButton.snp.makeConstraints { make in
-      make.trailing.equalTo(deleteButton.snp.leading).offset(-DesignSystem.Layout.standardMargin)
-      make.centerY.equalTo(dateLabel)
-      make.width.height.equalTo(30)
-    }
-    
-    favoriteButton.snp.makeConstraints { make in
-      make.trailing.equalTo(shareButton.snp.leading).offset(-DesignSystem.Layout.standardMargin)
-      make.centerY.equalTo(dateLabel)
-      make.width.height.equalTo(30)
-    }
-    
-    loadingIndicator.snp.makeConstraints { make in
-      make.center.equalTo(collectionView)
-    }
-  }
+      navigationBarView.snp.makeConstraints { make in
+              make.top.equalTo(view.safeAreaLayoutGuide.snp.top)
+              make.leading.trailing.equalToSuperview()
+              make.height.equalTo(50)
+          }
+          
+          symptomNameLabel.snp.makeConstraints { make in
+              make.top.equalTo(navigationBarView.snp.bottom).offset(10)
+              make.leading.trailing.equalToSuperview().inset(DesignSystem.Layout.standardMargin)
+              make.height.equalTo(30)
+          }
+          
+          severityIndicator.snp.makeConstraints { make in
+              make.top.equalTo(symptomNameLabel.snp.bottom).offset(8)
+              make.centerX.equalToSuperview()
+              make.width.equalTo(80)
+              make.height.equalTo(24)
+          }
+          
+          severityLabel.snp.makeConstraints { make in
+              make.edges.equalToSuperview()
+          }
+          
+          collectionView.snp.makeConstraints { make in
+              make.top.equalTo(severityIndicator.snp.bottom).offset(16)
+              make.leading.trailing.equalToSuperview()
+              make.height.equalTo(view.snp.width) // 정사각형 비율 유지
+          }
+          
+          pageControl.snp.makeConstraints { make in
+              make.centerX.equalToSuperview()
+              make.top.equalTo(collectionView.snp.bottom).offset(8)
+          }
+          
+          notesLabel.snp.makeConstraints { make in
+              make.top.equalTo(pageControl.snp.bottom).offset(DesignSystem.Layout.standardMargin)
+              make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
+              make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
+          }
+          
+          dateLabel.snp.makeConstraints { make in
+              make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
+              make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom).offset(-DesignSystem.Layout.standardMargin)
+          }
+          
+          deleteButton.snp.makeConstraints { make in
+              make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
+              make.centerY.equalTo(dateLabel)
+              make.width.height.equalTo(30)
+          }
+          
+          shareButton.snp.makeConstraints { make in
+              make.trailing.equalTo(deleteButton.snp.leading).offset(-DesignSystem.Layout.standardMargin)
+              make.centerY.equalTo(dateLabel)
+              make.width.height.equalTo(30)
+          }
+          
+          loadingIndicator.snp.makeConstraints { make in
+              make.center.equalTo(collectionView)
+          }
+      }
   
   override func configureView() {
     view.backgroundColor = .white
@@ -216,255 +209,244 @@ final class SymptomDetailViewController: BaseViewController {
   }
   
   // MARK: - Binding
-  override func bind() {
-    let input = SymptomDetailViewModel.Input(
-      viewDidLoad: Observable.just(()),
-      deleteButtonTap: deleteButton.rx.tap.asObservable(),
-      shareButtonTap: shareButton.rx.tap.asObservable(),
-      currentIndex: collectionView.rx.didEndDecelerating
-        .map { [weak self] _ -> Int in
-          guard let self = self else { return 0 }
-          let offsetX = self.collectionView.contentOffset.x
-          let width = self.collectionView.frame.width
-          return Int(round(offsetX / width))
-        }
-        .startWith(0)
-    )
-    
-    let output = viewModel.transform(input: input)
-    
-    // 증상 데이터 바인딩
-    output.symptoms
-      .drive(onNext: { [weak self] symptoms in
-        guard let self = self else { return }
-        
-        if let firstSymptom = symptoms.first {
-          self.symptomNameLabel.text = firstSymptom.name
-          self.updateSeverityIndicator(severity: firstSymptom.severity)
-        } else {
-          self.symptomNameLabel.text = "증상 없음"
-          self.updateSeverityIndicator(severity: 0)
-        }
-      })
-      .disposed(by: disposeBag)
-    
-    // 이미지 데이터 바인딩
-    output.imageRecords
-      .drive(onNext: { [weak self] imageRecords in
-        guard let self = self else { return }
-        // 로딩 시작 전 UI 업데이트
-        DispatchQueue.main.async {
-          self.loadedImages = [] // 초기화
-          self.collectionView.reloadData() // 데이터 초기화
-          self.pageControl.numberOfPages = imageRecords.count
-          self.pageControl.currentPage = 0
-          self.pageControl.isHidden = imageRecords.isEmpty
-          self.collectionView.isHidden = true
-          self.loadingIndicator.startAnimating()
-        }
-        
-        // Task를 사용하여 모든 이미지를 비동기적으로 로드
-        Task {
-          var images: [UIImage?] = []
-          for imageRecord in imageRecords {
-            print("이미지 경로: \(String(describing: imageRecord.originalImagePath))")
-            let image = await self.viewModel.imageManager.loadOriginalImageAsync(from: imageRecord.originalImagePath)
-            if image == nil {
-              print("이미지 로드 실패: \(String(describing: imageRecord.originalImagePath))")
-            }
-            images.append(image)
-          }
-          
-          // 메인 스레드에서 UI 업데이트
-          await MainActor.run {
-            self.loadedImages = images
-            self.collectionView.reloadData()
-            self.collectionView.isHidden = false
-            self.loadingIndicator.stopAnimating()
-            
-            // 이미지가 없는 경우 알림 표시
-            if images.allSatisfy({ $0 == nil }) && !images.isEmpty {
-              let alert = UIAlertController(title: "오류", message: "이미지를 로드할 수 없습니다.", preferredStyle: .alert)
-              alert.addAction(UIAlertAction(title: "확인", style: .default, handler: nil))
-              self.present(alert, animated: true)
-            }
-          }
-        }
-      })
-      .disposed(by: disposeBag)
-    
-    // 페이지 컨트롤 업데이트
-    collectionView.rx.contentOffset
-      .map { [weak self] offset -> Int in
-        guard let self = self, self.collectionView.frame.width > 0 else { return 0 }
-        return Int(round(offset.x / self.collectionView.frame.width))
-      }
-      .bind(to: pageControl.rx.currentPage)
-      .disposed(by: disposeBag)
-    
-    // 날짜 바인딩
-    output.dateText
-      .drive(dateLabel.rx.text)
-      .disposed(by: disposeBag)
-    
-    // 현재 증상 바인딩 (스크롤 이동 시 업데이트)
-    output.currentSymptom
-      .drive(onNext: { [weak self] symptom in
-        if let symptom = symptom {
-          self?.symptomNameLabel.text = symptom.name
-          self?.updateSeverityIndicator(severity: symptom.severity)
-        }
-      })
-      .disposed(by: disposeBag)
-    
-    // 즐겨찾기 상태 바인딩
-    output.isFavorite
-      .drive(onNext: { [weak self] isFavorite in
-        self?.updateFavoriteButtonUI(isFavorite: isFavorite)
-      })
-      .disposed(by: disposeBag)
-    
-    // 노트 텍스트 바인딩
-    output.notesText
-      .drive(onNext: { [weak self] notes in
-        if let notes = notes, !notes.isEmpty {
-          self?.notesLabel.text = notes
-          self?.notesLabel.isHidden = false
-        } else {
-          self?.notesLabel.isHidden = true
-        }
-      })
-      .disposed(by: disposeBag)
-    
-    // 뒤로가기 버튼
-    navigationBarView.leftButtonTapObservable
-      .subscribe(onNext: { [weak self] in
-        self?.dismiss(animated: true)
-      })
-      .disposed(by: disposeBag)
-    
-    // 삭제 성공 후 닫기
-    output.deleteSuccess
-      .drive(onNext: { [weak self] imagePaths in
-        guard let self = self else { return }
-        
-        // imagePaths는 ViewModel에서 전달받은 이미지 경로 배열 (안전하게 복사된 값)
-        // 각 경로에 대해 캐시 비우기
-        for (originalPath, thumbnailPath) in imagePaths {
-          if let path = originalPath {
-            ImageManager.shared.clearImageCache(for: path)
-          }
-          if let path = thumbnailPath {
-            ImageManager.shared.clearImageCache(for: path)
-          }
-        }
-        
-        // 삭제 성공 시 알림 발송 (추가 정보 포함)
-        NotificationCenter.default.post(
-          name: Notification.Name(DayCardDeletedNotification),
-          object: nil,
-          userInfo: [
-            "year": self.viewModel.year,
-            "month": self.viewModel.month,
-            "day": self.viewModel.day,
-            "forceReload": true
-          ]
+    override func bind() {
+        let input = SymptomDetailViewModel.Input(
+            viewDidLoad: Observable.just(()),
+            deleteButtonTap: deleteButton.rx.tap.asObservable(),
+            shareButtonTap: shareButton.rx.tap.asObservable(),
+            currentIndex: collectionView.rx.didEndDecelerating
+                .map { [weak self] _ -> Int in
+                    guard let self = self else { return 0 }
+                    let offsetX = self.collectionView.contentOffset.x
+                    let width = self.collectionView.frame.width
+                    return Int(round(offsetX / width))
+                }
+                .startWith(0)
         )
         
-        // 토스트 메시지 표시
-        self.showToast(message: "삭제가 완료되었습니다")
+        let output = viewModel.transform(input: input)
         
-        // 콜백 호출 및 화면 닫기 - 약간 지연시켜 토스트 메시지 보이도록
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-          self.onDelete?()
-          self.dismiss(animated: true)
-        }
-      })
-      .disposed(by: disposeBag)
-    
-    // 공유 버튼 액션
-    shareButton.rx.tap
-      .subscribe(onNext: { [weak self] _ in
-        guard let self = self else { return }
+        // 증상 데이터 바인딩
+        output.symptoms
+            .drive(onNext: { [weak self] symptoms in
+                guard let self = self else { return }
+                
+                if let firstSymptom = symptoms.first {
+                    self.symptomNameLabel.text = firstSymptom.name
+                    self.updateSeverityIndicator(severity: firstSymptom.severity)
+                } else {
+                    self.symptomNameLabel.text = "증상 없음"
+                    self.updateSeverityIndicator(severity: 0)
+                }
+            })
+            .disposed(by: disposeBag)
         
-        let currentPage = self.pageControl.currentPage
-        if currentPage < self.loadedImages.count,
-           let image = self.loadedImages[currentPage] {
-          // 공유 시트 표시
-          let activityVC = UIActivityViewController(activityItems: [image], applicationActivities: nil)
-          
-          // iPad 지원
-          if let popoverController = activityVC.popoverPresentationController {
-            popoverController.sourceView = self.shareButton
-            popoverController.sourceRect = self.shareButton.bounds
-          }
-          
-          self.present(activityVC, animated: true)
-        } else {
-          self.showToast(message: "공유할 이미지를 불러올 수 없습니다")
-        }
-      })
-      .disposed(by: disposeBag)
-    
-    // 삭제 버튼 탭 - Alert 표시 및 확인 후 ViewModel의 로직 실행
-    deleteButton.rx.tap
-      .subscribe(onNext: { [weak self] in
-        guard let self = self else { return }
+        // 이미지 데이터 바인딩
+        output.imageRecords
+            .drive(onNext: { [weak self] imageRecords in
+                guard let self = self else { return }
+                // 로딩 시작 전 UI 업데이트
+                DispatchQueue.main.async {
+                    self.loadedImages = [] // 초기화
+                    self.collectionView.reloadData() // 데이터 초기화
+                    self.pageControl.numberOfPages = imageRecords.count
+                    self.pageControl.currentPage = 0
+                    self.pageControl.isHidden = imageRecords.isEmpty
+                    self.collectionView.isHidden = true
+                    self.loadingIndicator.startAnimating()
+                }
+                
+                // Task를 사용하여 모든 이미지를 비동기적으로 로드
+                Task {
+                    var images: [UIImage?] = []
+                    for imageRecord in imageRecords {
+                        print("이미지 경로: \(String(describing: imageRecord.originalImagePath))")
+                        let image = await self.viewModel.imageManager.loadOriginalImageAsync(from: imageRecord.originalImagePath)
+                        if image == nil {
+                            print("이미지 로드 실패: \(String(describing: imageRecord.originalImagePath))")
+                        }
+                        images.append(image)
+                    }
+                    
+                    // 메인 스레드에서 UI 업데이트
+                    await MainActor.run {
+                        self.loadedImages = images
+                        self.collectionView.reloadData()
+                        self.collectionView.isHidden = false
+                        self.loadingIndicator.stopAnimating()
+                        
+                        // 이미지가 없는 경우 알림 표시
+                        if images.allSatisfy({ $0 == nil }) && !images.isEmpty {
+                            let alert = UIAlertController(title: "오류", message: "이미지를 로드할 수 없습니다.", preferredStyle: .alert)
+                            alert.addAction(UIAlertAction(title: "확인", style: .default, handler: nil))
+                            self.present(alert, animated: true)
+                        }
+                    }
+                }
+            })
+            .disposed(by: disposeBag)
         
-        let alert = UIAlertController(
-          title: "삭제 확인",
-          message: "이 증상 기록을 삭제하시겠습니까?",
-          preferredStyle: .alert
-        )
+        // 페이지 컨트롤 업데이트
+        collectionView.rx.contentOffset
+            .map { [weak self] offset -> Int in
+                guard let self = self, self.collectionView.frame.width > 0 else { return 0 }
+                return Int(round(offset.x / self.collectionView.frame.width))
+            }
+            .bind(to: pageControl.rx.currentPage)
+            .disposed(by: disposeBag)
         
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        // 날짜 바인딩
+        output.dateText
+            .drive(dateLabel.rx.text)
+            .disposed(by: disposeBag)
         
-        alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { [weak self] _ in
-          guard let self = self else { return }
-          
-          // 중요: 삭제 전에 필요한 이미지 경로 정보 먼저 복사
-          let imagePaths = self.viewModel.preparePathsForDeletion()
-          
-          // 로딩 표시 시작
-          self.loadingIndicator.startAnimating()
-          
-          // ViewModel의 삭제 로직 실행
-          output.deleteConfirmed.onNext(())
-        })
+        // 현재 증상 바인딩 (스크롤 이동 시 업데이트)
+        output.currentSymptom
+            .drive(onNext: { [weak self] symptom in
+                if let symptom = symptom {
+                    self?.symptomNameLabel.text = symptom.name
+                    self?.updateSeverityIndicator(severity: symptom.severity)
+                }
+            })
+            .disposed(by: disposeBag)
         
-        self.present(alert, animated: true)
-      })
-      .disposed(by: disposeBag)
-  }
+        // 노트 텍스트 바인딩
+        output.notesText
+            .drive(onNext: { [weak self] notes in
+                if let notes = notes, !notes.isEmpty {
+                    self?.notesLabel.text = notes
+                    self?.notesLabel.isHidden = false
+                } else {
+                    self?.notesLabel.isHidden = true
+                }
+            })
+            .disposed(by: disposeBag)
+        
+        // 뒤로가기 버튼
+        navigationBarView.leftButtonTapObservable
+            .subscribe(onNext: { [weak self] in
+                self?.dismiss(animated: true)
+            })
+            .disposed(by: disposeBag)
+        
+        // 삭제 성공 후 닫기
+        output.deleteSuccess
+            .drive(onNext: { [weak self] imagePaths in
+                guard let self = self else { return }
+                
+                // imagePaths는 ViewModel에서 전달받은 이미지 경로 배열 (안전하게 복사된 값)
+                // 각 경로에 대해 캐시 비우기
+                for (originalPath, thumbnailPath) in imagePaths {
+                    if let path = originalPath {
+                        ImageManager.shared.clearImageCache(for: path)
+                    }
+                    if let path = thumbnailPath {
+                        ImageManager.shared.clearImageCache(for: path)
+                    }
+                }
+                
+                // 삭제 성공 시 알림 발송 (추가 정보 포함)
+                NotificationCenter.default.post(
+                    name: Notification.Name(DayCardDeletedNotification),
+                    object: nil,
+                    userInfo: [
+                        "year": self.viewModel.year,
+                        "month": self.viewModel.month,
+                        "day": self.viewModel.day,
+                        "forceReload": true
+                    ]
+                )
+                
+                // 토스트 메시지 표시
+                self.showToast(message: "삭제가 완료되었습니다")
+                
+                // 콜백 호출 및 화면 닫기 - 약간 지연시켜 토스트 메시지 보이도록
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.onDelete?()
+                    self.dismiss(animated: true)
+                }
+            })
+            .disposed(by: disposeBag)
+        
+        // 공유 버튼 액션
+        shareButton.rx.tap
+            .subscribe(onNext: { [weak self] _ in
+                guard let self = self else { return }
+                
+                let currentPage = self.pageControl.currentPage
+                if currentPage < self.loadedImages.count,
+                   let image = self.loadedImages[currentPage] {
+                    // 공유 시트 표시
+                    let activityVC = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+                    
+                    // iPad 지원
+                    if let popoverController = activityVC.popoverPresentationController {
+                        popoverController.sourceView = self.shareButton
+                        popoverController.sourceRect = self.shareButton.bounds
+                    }
+                    
+                    self.present(activityVC, animated: true)
+                } else {
+                    self.showToast(message: "공유할 이미지를 불러올 수 없습니다")
+                }
+            })
+            .disposed(by: disposeBag)
+        
+        // 삭제 버튼 탭 - Alert 표시 및 확인 후 ViewModel의 로직 실행
+        deleteButton.rx.tap
+            .subscribe(onNext: { [weak self] in
+                guard let self = self else { return }
+                
+                let alert = UIAlertController(
+                    title: "삭제 확인",
+                    message: "이 증상 기록을 삭제하시겠습니까?",
+                    preferredStyle: .alert
+                )
+                
+                alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+                
+                alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { [weak self] _ in
+                    guard let self = self else { return }
+                    
+                    // 중요: 삭제 전에 필요한 이미지 경로 정보 먼저 복사
+                    let imagePaths = self.viewModel.preparePathsForDeletion()
+                    
+                    // 로딩 표시 시작
+                    self.loadingIndicator.startAnimating()
+                    
+                    // ViewModel의 삭제 로직 실행
+                    output.deleteConfirmed.onNext(())
+                })
+                
+                self.present(alert, animated: true)
+            })
+            .disposed(by: disposeBag)
+    }
   
   private func updateSeverityIndicator(severity: Int) {
     switch severity {
     case 1:
       severityIndicator.backgroundColor = DesignSystem.Color.Status.negative1.inUIColor()
-      severityLabel.text = "경증 (1)"
+      severityLabel.text = "일상적인 증상"
     case 2:
       severityIndicator.backgroundColor = DesignSystem.Color.Status.negative2.inUIColor()
-      severityLabel.text = "증상 (2)"
+      severityLabel.text = "가벼운 증상"
     case 3:
       severityIndicator.backgroundColor = DesignSystem.Color.Status.negative3.inUIColor()
-      severityLabel.text = "중간 (3)"
+      severityLabel.text = "중증 증상"
     case 4:
       severityIndicator.backgroundColor = DesignSystem.Color.Status.negative4.inUIColor()
-      severityLabel.text = "심함 (4)"
+      severityLabel.text = "심한 증상"
     case 5:
       severityIndicator.backgroundColor = DesignSystem.Color.Status.negative5.inUIColor()
-      severityLabel.text = "위험 (5)"
+      severityLabel.text = "응급 고위험"
     default:
       severityIndicator.backgroundColor = UIColor.lightGray
       severityLabel.text = "없음"
     }
   }
   
-  private func updateFavoriteButtonUI(isFavorite: Bool) {
-    let imageName = isFavorite ? "heart.fill" : "heart"
-    favoriteButton.setImage(UIImage(systemName: imageName), for: .normal)
-    favoriteButton.tintColor = isFavorite ? UIColor.systemPink : DesignSystem.Color.Tint.main.inUIColor()
-  }
+
 }
 
 // MARK: - UICollectionViewDataSource, UICollectionViewDelegateFlowLayout

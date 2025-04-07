@@ -13,11 +13,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     
     
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        print("SceneDelegate: scene 메서드 호출됨")
         guard let scene = (scene as? UIWindowScene) else { return }
         let tabBarController = MWTabBarController()
         window = UIWindow(windowScene: scene)
         window?.rootViewController = tabBarController
         window?.makeKeyAndVisible()
+        print("SceneDelegate: window 설정 완료, 크기: \(window?.bounds ?? .zero)")
     }
     
     func sceneDidDisconnect(_ scene: UIScene) {

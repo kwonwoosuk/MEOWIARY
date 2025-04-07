@@ -100,21 +100,58 @@ final class CardCalendarView: BaseView {
         // Realm에서 최신 데이터 가져오기
         dayCardData = dayCardRepository.getDayCardsMapForMonth(year: year, month: month)
         
-        // 캘린더 그리드 업데이트 (플립 상태일 때만)
-        if isCalendarMode || forceReload {
-            // 현재 보이는 셀만 업데이트 - 메인 스레드에서 UI 작업
+        // 증상 모드일 때도 적절히 처리
+        if isShowingSymptoms {
+            // 증상 모드에 맞게 표시
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
-                if let cell = self.getCellForIndex(month - 1) {
-                    // 셀이 준비되어 있는지 확인
-                    cell.prepareForReuse()
-                    // 최신 데이터로 그리드 생성
-                    cell.createCalendarGrid(with: self.dayCardData)
+                self.refreshWithSymptomData()
+            }
+        } else {
+            // 캘린더 그리드 업데이트 (플립 상태일 때만)
+            if isCalendarMode || forceReload {
+                // 현재 보이는 셀만 업데이트 - 메인 스레드에서 UI 작업
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    if let cell = self.getCellForIndex(month - 1) {
+                        // 셀이 준비되어 있는지 확인
+                        cell.prepareForReuse()
+                        // 최신 데이터로 그리드 생성
+                        cell.createCalendarGrid(with: self.dayCardData)
+                    }
                 }
             }
         }
     }
     
+    private func refreshWithSymptomData() {
+        // 현재 보이는 셀만 업데이트
+        // if let 대신 일반 if 문 사용 (메서드가 Int를 반환한다고 가정)
+        let currentIndex = getCurrentCardIndex()
+        
+        // currentIndex가 유효한지 확인 (예: -1이면 무효)
+        if currentIndex >= 0 && currentIndex < 12 {
+            let month = currentIndex + 1
+            
+            // 증상 데이터 로드
+            let dayCardData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
+            
+            // 로그에 증상 개수 출력
+            var symptomCount = 0
+            for (_, dayCard) in dayCardData {
+                symptomCount += dayCard.symptoms.count
+            }
+            print("월간 증상 데이터 갱신: \(currentYear)년 \(month)월 - \(symptomCount)개 증상")
+            
+            // 셀 업데이트
+            if let cell = getCellForIndex(currentIndex) {
+                // 화면에 보이는 셀만 업데이트하도록 수정
+                if cell.isFlipped {
+                    cell.createCalendarGrid(with: dayCardData)
+                }
+            }
+        }
+    }
     // 페이지 너비를 계산하는 메서드
     private func calculatePageWidth() {
         pageWidth = self.frame.width
@@ -282,9 +319,9 @@ final class CardCalendarView: BaseView {
             if let cell = getCellForIndex(i) {
                 // 모드에 따라 적절한 메시지 표시
                 if isShowingSymptoms {
-                    cell.messageLabel.text = "날짜를 선택하여 증상 기록을 확인하세요."
+                    cell.getMessageLabel().text = "날짜를 선택하여 증상 기록을 확인하세요."
                 } else {
-                    cell.messageLabel.text = "날짜를 선택해 일기를 작성해보세요."
+                    cell.getMessageLabel().text = "날짜를 선택해 일기를 작성해보세요."
                 }
                 
                 // 캘린더 모드인 경우만 그리드 다시 그리기
@@ -335,6 +372,7 @@ final class CardCalendarView: BaseView {
                 // 셀 모드에 따라 적절한 메서드 호출
                 if cardCell.isFlipped {
                     cardCell.createCalendarGrid(with: monthData)
+                    cardCell.updateSymptomView(isShowing: isShowingSymptoms)
                 } else {
                     cardCell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
                 }
@@ -397,12 +435,6 @@ final class CardCalendarView: BaseView {
     }
 
 }
-
-
-
-
-
-
 
 
 // MARK: - CardCalendarView Collection View Extensions
@@ -470,7 +502,7 @@ extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate
         updateMonth(month: month)
         
         // 디버깅 로그
-        print("CardCalendarView - 스크롤 완료: 페이지 \(currentIndex + 1)")
+//        print("CardCalendarView - 스크롤 완료: 페이지 \(currentIndex + 1)")
     }
     
     // 스크롤 애니메이션이 끝난 후 호출되는 메서드
