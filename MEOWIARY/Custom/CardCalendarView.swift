@@ -95,15 +95,21 @@ final class CardCalendarView: BaseView {
         }
     }
     
-    func updateData(year: Int, month: Int) {
+    func updateData(year: Int, month: Int, forceReload: Bool = false) {
+        // Realm에서 최신 데이터 가져오기
         dayCardData = dayCardRepository.getDayCardsMapForMonth(year: year, month: month)
         
         // 캘린더 그리드 업데이트 (플립 상태일 때만)
-        if isCalendarMode {
-            // 현재 보이는 셀만 업데이트
-            if let cell = getCellForIndex(month - 1) {
-                // 수정: CardCell의 createCalendarGrid 호출
-                cell.createCalendarGrid(with: dayCardData)
+        if isCalendarMode || forceReload {
+            // 현재 보이는 셀만 업데이트 - 메인 스레드에서 UI 작업
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                if let cell = self.getCellForIndex(month - 1) {
+                    // 셀이 준비되어 있는지 확인
+                    cell.prepareForReuse()
+                    // 최신 데이터로 그리드 생성
+                    cell.createCalendarGrid(with: self.dayCardData)
+                }
             }
         }
     }
@@ -156,11 +162,22 @@ final class CardCalendarView: BaseView {
         // 월 레이블 텍스트 설정
         monthLabel.text = "\(currentMonth)월"
         
-        // 컬렉션뷰 데이터 리로드 및 현재 월로 스크롤
+        // 컬렉션뷰 데이터 전체 리로드
         cardCollectionView.reloadData()
         
         // 현재 월로 스크롤
         scrollToMonth(month: currentMonth, animated: false)
+        
+        // 잠시 후 데이터 다시 로드하여 UI 확실히 갱신
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self = self else { return }
+            
+            // 현재 표시된 셀 찾아서 데이터 갱신
+            if let cell = self.getCellForIndex(self.currentMonth - 1) {
+                let data = self.dayCardRepository.getDayCardsMapForMonth(year: self.currentYear, month: self.currentMonth)
+                cell.createCalendarGrid(with: data)
+            }
+        }
         
         // 레이아웃 갱신
         layoutIfNeeded()
@@ -198,28 +215,36 @@ final class CardCalendarView: BaseView {
     }
     
     func flipAllToCalendar() {
-        // 이미 캘린더 모드면 무시
-        guard !isCalendarMode else { return }
-        
-        // 중요: 모드 변경을 먼저 하여 updateData에서 그리드 업데이트가 작동하도록 함
-        isCalendarMode = true
-        
-        // 현재 데이터 로드
-        updateData(year: currentYear, month: currentMonth)
-        
-        // 모든 셀에 애니메이션 적용
-        for i in 0..<12 {
-          if let cell = getCellForIndex(i) {
-            // 현재 보이는 셀과 그 주변 셀에만 애니메이션 적용
-            // 각 월별 데이터를 전달하여 이미지 표시 문제 해결
-            let monthData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: i+1)
-            cell.flipToCalendar()
+      // 이미 캘린더 모드면 무시
+      guard !isCalendarMode else { return }
+      
+      // 현재 데이터 로드
+      let cachedData = (0..<12).map { i -> (Int, [Int: DayCard]) in
+        return (i+1, dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: i+1))
+      }
+      
+      // 모든 셀의 애니메이션을 동시에 적용
+      for (month, monthData) in cachedData {
+        if let cell = getCellForIndex(month-1) {
+          // 모든 셀을 동시에 뒤집기 시작 (애니메이션 조정)
+          cell.flipToCalendar(animated: true)
+          
+          // 애니메이션 완료 후 그리드 생성
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             cell.createCalendarGrid(with: monthData)
           }
         }
-        
-        print("CardCalendarView: 모든 카드를 캘린더로 플립 (모든 셀에 애니메이션 적용)")
       }
+      
+      // 애니메이션 완료 후에 모드 변경
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+        guard let self = self else { return }
+        self.isCalendarMode = true
+        self.updateData(year: self.currentYear, month: self.currentMonth)
+      }
+      
+      print("CardCalendarView: 모든 카드를 캘린더로 플립 (일정한 속도로 애니메이션 적용)")
+    }
     
     // 모든 카드를 원래 상태로 한 번에 되돌리기 (모든 셀에 애니메이션 적용)
     func flipAllToCard() {
@@ -245,6 +270,33 @@ final class CardCalendarView: BaseView {
         let currentIndex = getCurrentCardIndex()
         if let currentCell = getCellForIndex(currentIndex) {
             currentCell.updateSymptomView(isShowing: isShowing)
+        }
+    }
+    
+    func refreshVisibleCells() {
+        // 현재 보이는 셀만 찾아서 갱신 (데이터소스는 이미 업데이트되어 있음)
+        for visibleCell in cardCollectionView.visibleCells {
+            if let cardCell = visibleCell as? CardCell,
+               let indexPath = cardCollectionView.indexPath(for: visibleCell) {
+                
+                // 셀의 인덱스로 월 계산
+                let month = indexPath.item + 1
+                
+                // 초기화
+                cardCell.prepareForReuse()
+                
+                // 최신 데이터로 다시 구성
+                let monthData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
+                
+                // 셀 모드에 따라 적절한 메서드 호출
+                if cardCell.isFlipped {
+                    cardCell.createCalendarGrid(with: monthData)
+                } else {
+                    cardCell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
+                }
+                
+                print("CardCalendarView: 셀 새로고침 - \(month)월")
+            }
         }
     }
     
@@ -294,11 +346,21 @@ final class CardCalendarView: BaseView {
             }
         }
     }
+    
+    func cellPrepared(cell: CardCell, forMonth month: Int) {
+        // 월을 기준으로 고유 태그 설정 (나중에 찾을 수 있도록)
+        cell.tag = month
+    }
+
 }
-func cellPrepared(cell: CardCell, forMonth month: Int) {
-    // 월을 기준으로 고유 태그 설정 (나중에 찾을 수 있도록)
-    cell.tag = month
-}
+
+
+
+
+
+
+
+
 // MARK: - CardCalendarView Collection View Extensions
 extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
     

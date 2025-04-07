@@ -281,19 +281,40 @@ final class DetailViewController: BaseViewController {
         
         // 삭제 성공 후 닫기
         output.deleteSuccess
-          .drive(onNext: { [weak self] in
-            // 삭제 성공 시 알림 발송
+          .drive(onNext: { [weak self] imagePaths in
+            guard let self = self else { return }
+            
+            // imagePaths는 ViewModel에서 전달받은 이미지 경로 배열 (안전하게 복사된 값)
+            // 각 경로에 대해 캐시 비우기
+            for (originalPath, thumbnailPath) in imagePaths {
+                if let path = originalPath {
+                    ImageManager.shared.clearImageCache(for: path)
+                }
+                if let path = thumbnailPath {
+                    ImageManager.shared.clearImageCache(for: path)
+                }
+            }
+            
+            // 삭제 성공 시 알림 발송 (추가 정보 포함)
             NotificationCenter.default.post(
               name: Notification.Name(DayCardDeletedNotification),
               object: nil,
-              userInfo: ["year": self?.viewModel.year ?? 0,
-                         "month": self?.viewModel.month ?? 0,
-                         "day": self?.viewModel.day ?? 0]
+              userInfo: [
+                "year": self.viewModel.year,
+                "month": self.viewModel.month,
+                "day": self.viewModel.day,
+                "forceReload": true
+              ]
             )
             
-            // 콜백 호출 및 화면 닫기
-            self?.onDelete?()
-            self?.dismiss(animated: true)
+            // 토스트 메시지 표시
+            self.showToast(message: "삭제가 완료되었습니다")
+            
+            // 콜백 호출 및 화면 닫기 - 약간 지연시켜 토스트 메시지 보이도록
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.onDelete?()
+                self.dismiss(animated: true)
+            }
           })
           .disposed(by: disposeBag)
         
@@ -337,11 +358,16 @@ final class DetailViewController: BaseViewController {
             alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { [weak self] _ in
               guard let self = self else { return }
               
+              // 중요: 삭제 전에 필요한 이미지 경로 정보 먼저 복사
+              let imagePaths = self.viewModel.preparePathsForDeletion()
+              
               // 로딩 표시 시작
               self.loadingIndicator.startAnimating()
               
               // ViewModel의 삭제 로직 실행
               output.deleteConfirmed.onNext(())
+              
+              // 삭제 성공 시 실행되는 메서드는 아래에서 수정
             })
             
             self.present(alert, animated: true)

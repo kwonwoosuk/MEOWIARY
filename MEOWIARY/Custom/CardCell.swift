@@ -123,24 +123,50 @@ final class CardCell: UICollectionViewCell {
     setupUI()
   }
   
-  override func prepareForReuse() {
-    super.prepareForReuse()
-    backgroundImageView.image = nil
-    
-    // 플립 상태는 초기화하지 않고 유지
-    // isFlipped 상태는 CardCalendarView의 isCalendarMode에 따라 설정됨
-    
-    // 증상 데이터 초기화
-    symptomsData.removeAll()
-    
-    // 캘린더 그리드 초기화
-    for subview in calendarGridView.subviews {
-      subview.removeFromSuperview()
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        backgroundImageView.image = nil
+        
+        // 플립 상태는 초기화하지 않고 유지
+        // isFlipped 상태는 CardCalendarView의 isCalendarMode에 따라 설정됨
+        
+        // 증상 데이터 초기화
+        symptomsData.removeAll()
+        
+        // 캘린더 그리드 초기화 (모든 이미지 포함 뷰 제거)
+        for subview in calendarGridView.subviews {
+            subview.removeFromSuperview()
+        }
+        
+        // 캘린더 버튼들의 이미지뷰도 제거
+        cleanupCalendarButtonImages()
     }
-  }
+
+    
+    private func cleanupCalendarButtonImages() {
+        // 캘린더 그리드의 모든 버튼을 찾아서 이미지뷰 제거
+        for subview in calendarGridView.subviews {
+            if let button = subview as? UIButton {
+                for btnSubview in button.subviews {
+                    if btnSubview is UIImageView {
+                        btnSubview.removeFromSuperview()
+                    }
+                }
+                // 텍스트 복원
+                button.titleLabel?.isHidden = false
+                button.setTitleColor(nil, for: .normal) // 기본 색상으로 복원
+            }
+        }
+    }
+
   
     private func addImageIndicator(to button: UIButton, imagePath: String?) {
-        guard let imagePath = imagePath else { return }
+        guard let imagePath = imagePath else {
+            // 이미지 없음 - 텍스트 표시 복원
+            button.titleLabel?.isHidden = false
+            button.setTitleColor(nil, for: .normal)
+            return
+        }
         
         let isSmallScreen = UIScreen.main.bounds.height <= 667
         let indicatorSize: CGFloat = isSmallScreen ? 18 : 22
@@ -152,33 +178,30 @@ final class CardCell: UICollectionViewCell {
             }
         }
         
-        let imageView = UIImageView()
-        imageView.contentMode = .scaleAspectFill
-        imageView.clipsToBounds = true
-        imageView.layer.cornerRadius = indicatorSize / 2
-        
-        // 썸네일 이미지 로드
+        // 실제 이미지가 존재하는지 먼저 확인
         if let thumbnail = ImageManager.shared.loadThumbnailImage(from: imagePath) {
+            let imageView = UIImageView()
+            imageView.contentMode = .scaleAspectFill
+            imageView.clipsToBounds = true
+            imageView.layer.cornerRadius = indicatorSize / 2
             imageView.image = thumbnail
+            
+            button.addSubview(imageView)
+            imageView.frame = CGRect(
+                x: (button.frame.width - indicatorSize) / 2,
+                y: (button.frame.height - indicatorSize) / 2,
+                width: indicatorSize,
+                height: indicatorSize
+            )
+            
+            // 이미지가 있을 때 날짜 텍스트 강제로 완전히 숨기기
+            button.titleLabel?.isHidden = true
+            button.setTitleColor(.clear, for: .normal)
         } else {
-            // 기본 이미지로 대체
-            imageView.image = UIImage(systemName: "photo")
-            imageView.tintColor = .white
-            imageView.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
+            // 이미지가 로드되지 않으면 텍스트 표시 복원
+            button.titleLabel?.isHidden = false
+            button.setTitleColor(nil, for: .normal)
         }
-        
-        button.addSubview(imageView)
-        imageView.frame = CGRect(
-            x: (button.frame.width - indicatorSize) / 2,
-            y: (button.frame.height - indicatorSize) / 2,
-            width: indicatorSize,
-            height: indicatorSize
-        )
-        
-        // 이미지가 있을 때 날짜 텍스트 강제로 완전히 숨기기
-        button.titleLabel?.isHidden = true
-        button.setTitleColor(.clear, for: .normal)
-        button.setTitleColor(.clear, for: .normal)
     }
     
   
@@ -528,75 +551,73 @@ final class CardCell: UICollectionViewCell {
   }
   
   // MARK: - Flipping Methods
-      func flipToCalendar(animated: Bool = true) {
-        // 이미 뒤집힌 상태면 종료 (createCalendarGrid는 외부에서 호출하도록 수정)
-        if isFlipped {
-          return
-        }
-        
-        if animated {
-          // 더 뚜렷한 애니메이션 효과를 위해 속성 조정
-          UIView.transition(
-            with: self.contentView,
-            duration: 0.4,
-            options: [.transitionFlipFromLeft, .allowUserInteraction],
-            animations: {
-              self.containerView.isHidden = true
-              self.calendarContainerView.isHidden = false
-            },
-            completion: { _ in
-              self.isFlipped = true
-              // 그리드 생성은 외부에서 데이터와 함께 호출되도록 변경
-              print("CardCell: \(self.month)월 카드 뒤집기 애니메이션 완료")
-            }
-          )
-        } else {
-          // 애니메이션 없이 즉시 상태 변경
-          containerView.isHidden = true
-          calendarContainerView.isHidden = false
-          isFlipped = true
-          // 그리드 생성은 외부에서 호출
-        }
-        
-        // 디버그 로그
-        if animated {
-          print("CardCell: \(month)월 카드를 캘린더로 플립 시작 (태그: \(self.tag))")
-        }
+    func flipToCalendar(animated: Bool = true) {
+      // 이미 뒤집힌 상태면 종료
+      if isFlipped {
+        return
       }
+      
+      if animated {
+        // 애니메이션 옵션 수정 - 일정한 속도로 뒤집기
+        UIView.transition(
+          with: self.contentView,
+          duration: 0.4,
+          options: [.transitionFlipFromLeft, .allowUserInteraction, .curveLinear], // .curveLinear 추가
+          animations: {
+            self.containerView.isHidden = true
+            self.calendarContainerView.isHidden = false
+          },
+          completion: { _ in
+            self.isFlipped = true
+            print("CardCell: \(self.month)월 카드 뒤집기 애니메이션 완료")
+          }
+        )
+      } else {
+        // 애니메이션 없이 즉시 상태 변경
+        containerView.isHidden = true
+        calendarContainerView.isHidden = false
+        isFlipped = true
+      }
+      
+      // 디버그 로그
+      if animated {
+        print("CardCell: \(month)월 카드를 캘린더로 플립 시작 (태그: \(self.tag))")
+      }
+    }
     
   // 뒤로 플립 애니메이션 개선
-  func flipToCard(animated: Bool = true) {
-    // 이미 카드 상태면 무시
-    if !isFlipped {
-      return
+    func flipToCard(animated: Bool = true) {
+      // 이미 카드 상태면 무시
+      if !isFlipped {
+        return
+      }
+      
+      if animated {
+        UIView.transition(
+          with: self.contentView,
+          duration: 0.4,
+          options: [.transitionFlipFromRight, .allowUserInteraction, .curveLinear], // .curveLinear 추가
+          animations: {
+            self.calendarContainerView.isHidden = true
+            self.containerView.isHidden = false
+          },
+          completion: { _ in
+            self.isFlipped = false
+            print("CardCell: \(self.month)월 카드 되돌리기 애니메이션 완료")
+          }
+        )
+      } else {
+        // 애니메이션 없이 즉시 상태 변경
+        calendarContainerView.isHidden = true
+        containerView.isHidden = false
+        isFlipped = false
+      }
+      
+      // 디버그 로그
+      if animated {
+        print("CardCell: \(month)월 카드를 원래대로 되돌리기 시작 (태그: \(self.tag))")
+      }
     }
-    
-    if animated {
-      UIView.transition(
-        with: self.contentView,
-        duration: 0.4,
-        options: [.transitionFlipFromRight, .allowUserInteraction],
-        animations: {
-          self.calendarContainerView.isHidden = true
-          self.containerView.isHidden = false
-        },
-        completion: { _ in
-          self.isFlipped = false
-          print("CardCell: \(self.month)월 카드 되돌리기 애니메이션 완료")
-        }
-      )
-    } else {
-      // 애니메이션 없이 즉시 상태 변경
-      calendarContainerView.isHidden = true
-      containerView.isHidden = false
-      isFlipped = false
-    }
-    
-    // 디버그 로그
-    if animated {
-      print("CardCell: \(month)월 카드를 원래대로 되돌리기 시작 (태그: \(self.tag))")
-    }
-  }
   // MARK: - Helper Methods
   private func daysInMonth(month: Int, year: Int) -> Int {
     let calendar = Calendar.current

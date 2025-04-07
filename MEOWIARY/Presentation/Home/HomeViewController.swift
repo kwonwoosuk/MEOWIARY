@@ -251,9 +251,6 @@ final class HomeViewController: BaseViewController {
         
         toggleViewButton.rx.tap
               .bind(to: toggleViewTapEvent)
-//            .subscribe(onNext:{ [weak self] in
-//                self?.showToast(message: "증상기록보기 기능은 곧 지원될 예정입니다")
-//            })
             .disposed(by: disposeBag)
         
         
@@ -301,23 +298,45 @@ final class HomeViewController: BaseViewController {
                 guard let self = self,
                       let userInfo = notification.userInfo,
                       let year = userInfo["year"] as? Int,
-                      let month = userInfo["month"] as? Int else {
+                      let month = userInfo["month"] as? Int,
+                      let day = userInfo["day"] as? Int else {
                     return
                 }
                 
-                // CardCalendarView 데이터 갱신
-                self.cardCalendarView.updateData(year: year, month: month)
+                // 이미지 캐시 먼저 제거 (경로 정보 직접 참조 없이)
+                ImageManager.shared.clearAllImageCacheForMonth(year: year, month: month)
                 
-                // 현재 보이는 셀 업데이트
-                if let currentMonth = self.cardCalendarView.getCurrentMonth(),
-                   currentMonth == month {
-                    if let cell = self.cardCalendarView.getCellForIndex(month - 1) {
-                        let dayCardData = self.dayCardRepository.getDayCardsMapForMonth(year: year, month: month)
-                        cell.createCalendarGrid(with: dayCardData)
+                // 안전하게 UI 업데이트 - 약간 지연시켜 Realm 작업이 완료되도록
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    guard let self = self else { return }
+                    
+                    // CardCalendarView 데이터 갱신
+                    self.cardCalendarView.updateData(year: year, month: month)
+                    
+                    // 현재 보이는 셀만 찾아서 명시적으로 안전하게 업데이트
+                    if let currentMonth = self.cardCalendarView.getCurrentMonth() {
+                        if let cell = self.cardCalendarView.getCellForIndex(currentMonth - 1) {
+                            // 완전히 새로운 데이터를 준비
+                            let dayCardData = self.dayCardRepository.getDayCardsMapForMonth(year: year, month: month)
+                            
+                            // 셀 초기화 후 데이터 갱신
+                            DispatchQueue.main.async {
+                                cell.prepareForReuse()
+                                cell.createCalendarGrid(with: dayCardData)
+                            }
+                        }
+                    }
+                    
+                    // 변경이 있었던 날짜의 월인 경우만 컬렉션뷰 갱신
+                    if month == self.cardCalendarView.getCurrentMonth() {
+                        DispatchQueue.main.async {
+                            // 컬렉션뷰 갱신 (데이터 소스는 변경되지 않음)
+                            self.cardCalendarView.refreshVisibleCells()
+                        }
                     }
                 }
                 
-                // 토스트 메시지로 사용자에게 알림
+                // 토스트 메시지
                 self.showToast(message: "일기가 삭제되었습니다")
             })
             .disposed(by: disposeBag)
@@ -410,40 +429,58 @@ final class HomeViewController: BaseViewController {
     }
     
     private func flipCardToCalendar() {
-      // 월 선택이 정확하도록 카드뷰에 현재 월 정보 전달
-      let currentMonth = Calendar.current.component(.month, from: Date())
-      cardCalendarView.updateMonth(month: currentMonth)
-      
-      // 버튼 먼저 숨기기
-      UIView.performWithoutAnimation {
-        calendarButton.isHidden = true
-        backButton.isHidden = false
-        self.view.layoutIfNeeded()
-      }
-      
-      cardCalendarView.flipAllToCalendar()
-      
-      // 데이터 갱신 명시적으로 재호출
-      if let currentMonth = cardCalendarView.getCurrentMonth() {
-        cardCalendarView.updateData(year: viewModel.yearSubject.value, month: currentMonth)
-      }
-      
-      print("HomeViewController: 모든 카드를 캘린더로 플립")
+        // 월 선택이 정확하도록 카드뷰에 현재 월 정보 전달
+        let currentMonth = Calendar.current.component(.month, from: Date())
+        cardCalendarView.updateMonth(month: currentMonth)
+        
+        // 먼저 애니메이션 시작
+        cardCalendarView.flipAllToCalendar()
+        
+        // 애니메이션 도중(약간의 지연 시간)에 버튼 상태 변경
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self = self else { return }
+            
+            UIView.animate(withDuration: 0.2) {
+                self.calendarButton.isHidden = true
+                self.backButton.isHidden = false
+                self.view.layoutIfNeeded()
+            }
+        }
+        
+        // 데이터 갱신 - 애니메이션 완료 후 호출
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            guard let self = self else { return }
+            
+            // 데이터 갱신 명시적으로 재호출
+            if let currentMonth = self.cardCalendarView.getCurrentMonth() {
+                self.cardCalendarView.updateData(year: self.viewModel.yearSubject.value, month: currentMonth)
+            }
+        }
+        
+        print("HomeViewController: 모든 카드를 캘린더로 플립 (애니메이션 적용)")
     }
     
     // 모든 메서드에서 적용할 수 있도록 수정
+    // HomeViewController.swift의 flipCalendarToCard() 메서드 수정
     private func flipCalendarToCard() {
-        // 버튼 먼저 변경
-        UIView.performWithoutAnimation {
-            calendarButton.isHidden = false
-            backButton.isHidden = true
-            self.view.layoutIfNeeded()
-        }
+        // 애니메이션 적용 전에 상태 저장
+        let isCalendarMode = cardCalendarView.isCalendarMode
         
-        // 모든 카드 되돌리기 실행 (개선된 메서드)
+        // 애니메이션이 완료된 후 버튼 상태를 변경하도록 수정
         cardCalendarView.flipAllToCard()
         
-        print("HomeViewController: 모든 카드를 원래대로 돌림")
+        // 애니메이션 완료 후(약간의 지연 시간) 버튼 상태 변경
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            guard let self = self else { return }
+            
+            UIView.animate(withDuration: 0.2) {
+                self.calendarButton.isHidden = false
+                self.backButton.isHidden = true
+                self.view.layoutIfNeeded()
+            }
+        }
+        
+        print("HomeViewController: 모든 카드를 원래대로 돌림 (애니메이션 적용)")
     }
     
     

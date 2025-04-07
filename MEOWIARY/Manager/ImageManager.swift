@@ -10,6 +10,7 @@ import RxSwift
 
 class ImageManager {
     static let shared = ImageManager()
+    private var imageCache: [String: UIImage] = [:]
     
     private init() {
         createDirectoriesIfNeeded()
@@ -52,27 +53,38 @@ class ImageManager {
     
     // 원본 이미지 로드
     func loadOriginalImage(from imagePath: String?) -> UIImage? {
-        guard let imagePath = imagePath else {
-            print("이미지 경로가 nil입니다.")
-            return nil
-        }
-        let fileURL = getOriginalImagesDirectory().appendingPathComponent(imagePath)
-        
-        print("원본 이미지 로드 시도: \(fileURL.path)")
-        
-        if FileManager.default.fileExists(atPath: fileURL.path) {
-            if let data = try? Data(contentsOf: fileURL) {
-                print("원본 이미지 로드 성공: \(data.count) 바이트")
-                return UIImage(data: data)
-            } else {
-                print("원본 이미지 로드 실패: 데이터를 읽을 수 없음")
-                return nil
-            }
-        } else {
-            print("원본 이미지 로드 실패: 파일이 존재하지 않음 - \(fileURL.path)")
-            return nil
-        }
-    }
+           guard let imagePath = imagePath else {
+               print("이미지 경로가 nil입니다.")
+               return nil
+           }
+           
+           // 캐시에 있으면 캐시에서 반환
+           if let cachedImage = imageCache[imagePath] {
+               return cachedImage
+           }
+           
+           let fileURL = getOriginalImagesDirectory().appendingPathComponent(imagePath)
+           
+           print("원본 이미지 로드 시도: \(fileURL.path)")
+           
+           if FileManager.default.fileExists(atPath: fileURL.path) {
+               if let data = try? Data(contentsOf: fileURL) {
+                   print("원본 이미지 로드 성공: \(data.count) 바이트")
+                   if let image = UIImage(data: data) {
+                       // 캐시에 저장
+                       imageCache[imagePath] = image
+                       return image
+                   }
+               } else {
+                   print("원본 이미지 로드 실패: 데이터를 읽을 수 없음")
+                   return nil
+               }
+           } else {
+               print("원본 이미지 로드 실패: 파일이 존재하지 않음 - \(fileURL.path)")
+               return nil
+           }
+           return nil
+       }
     
     // 비동기 이미지 로딩 메서드
     func loadOriginalImageAsync(from imagePath: String?) async -> UIImage? {
@@ -178,18 +190,28 @@ class ImageManager {
     }
     
     func loadThumbnailImage(from imagePath: String?) -> UIImage? {
-        guard let imagePath = imagePath else { return nil }
-        let fileURL = getThumbnailImagesDirectory().appendingPathComponent(imagePath)
-        
-        print("썸네일 로드 시도: \(fileURL.path)")
-        
-        if let data = try? Data(contentsOf: fileURL) {
-            print("썸네일 로드 성공: \(data.count) 바이트")
-            return UIImage(data: data)
+            guard let imagePath = imagePath else { return nil }
+            
+            // 캐시에 있으면 캐시에서 반환
+            if let cachedImage = imageCache[imagePath] {
+                return cachedImage
+            }
+            
+            let fileURL = getThumbnailImagesDirectory().appendingPathComponent(imagePath)
+            
+            print("썸네일 로드 시도: \(fileURL.path)")
+            
+            if let data = try? Data(contentsOf: fileURL) {
+                print("썸네일 로드 성공: \(data.count) 바이트")
+                if let image = UIImage(data: data) {
+                    // 캐시에 저장
+                    imageCache[imagePath] = image
+                    return image
+                }
+            }
+            print("썸네일 로드 실패: 파일이 없음")
+            return UIImage(systemName: "photo")
         }
-        print("썸네일 로드 실패: 파일이 없음")
-        return UIImage(systemName: "photo")
-    }
     
     func resizeImage(_ image: UIImage, targetSize: CGSize) -> UIImage? {
         let size = image.size
@@ -252,20 +274,50 @@ class ImageManager {
   }
   
   // 이미지 파일 직접 삭제 메서드
-  func deleteImageFile(path: String, isOriginal: Bool) {
-      let fileManager = FileManager.default
-      let directory = isOriginal ? getOriginalImagesDirectory() : getThumbnailImagesDirectory()
-      let fileURL = directory.appendingPathComponent(path)
-      
-      do {
-          if fileManager.fileExists(atPath: fileURL.path) {
-              try fileManager.removeItem(at: fileURL)
-              print("ImageManager: 이미지 파일 삭제 성공 - \(fileURL.path)")
-          } else {
-              print("ImageManager: 삭제할 파일이 없음 - \(fileURL.path)")
-          }
-      } catch {
-          print("ImageManager: 파일 삭제 실패 - \(error.localizedDescription)")
-      }
-  }
+    func deleteImageFile(path: String, isOriginal: Bool) {
+        // 스레드 안전하게 백그라운드에서 파일 삭제 처리
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let self = self else { return }
+            
+            let fileManager = FileManager.default
+            let directory = isOriginal ? self.getOriginalImagesDirectory() : self.getThumbnailImagesDirectory()
+            let fileURL = directory.appendingPathComponent(path)
+            
+            do {
+                if fileManager.fileExists(atPath: fileURL.path) {
+                    try fileManager.removeItem(at: fileURL)
+                    
+                    // 파일 삭제 후 메인 스레드에서 캐시 제거
+                    DispatchQueue.main.async { [weak self] in
+                        self?.clearImageCache(for: path)
+                    }
+                    
+                    print("ImageManager: 이미지 파일 삭제 성공 - \(fileURL.path)")
+                } else {
+                    print("ImageManager: 삭제할 파일이 없음 - \(fileURL.path)")
+                }
+            } catch {
+                print("ImageManager: 파일 삭제 실패 - \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    func clearImageCache(for path: String?) {
+        // 안전하게 처리 - 경로가 nil이거나 빈 문자열이면 무시
+        guard let path = path, !path.isEmpty else { return }
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.imageCache.removeValue(forKey: path)
+            print("ImageManager: 이미지 캐시 제거 - \(path)")
+        }
+    }
+
+    // 특정 연도/월에 해당하는 모든 이미지 캐시 제거
+    func clearAllImageCacheForMonth(year: Int, month: Int) {
+        // 스레드 안전하게 메인 스레드에서 캐시 전체 비우기
+        DispatchQueue.main.async { [weak self] in
+            self?.imageCache.removeAll()
+            print("ImageManager: 이미지 캐시를 모두 비웠습니다 - \(year)년 \(month)월")
+        }
+    }
 }
