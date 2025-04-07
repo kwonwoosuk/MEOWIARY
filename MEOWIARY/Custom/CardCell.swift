@@ -19,6 +19,7 @@ final class CardCell: UICollectionViewCell {
     private var year: Int = Calendar.current.component(.year, from: Date())
     private var month: Int = 1
     var isFlipped = false
+    var isShowingSymptoms = false
     let disposeBag = DisposeBag()
     private var symptomsData: [Int: Bool] = [:]  // Dictionary to track days with symptoms
     let dateTapped = PublishSubject<(year: Int, month: Int, day: Int)>()
@@ -128,9 +129,6 @@ final class CardCell: UICollectionViewCell {
         super.prepareForReuse()
         backgroundImageView.image = nil
         
-        // 플립 상태는 초기화하지 않고 유지
-        // isFlipped 상태는 CardCalendarView의 isCalendarMode에 따라 설정됨
-        
         // 증상 데이터 초기화
         symptomsData.removeAll()
         
@@ -139,7 +137,7 @@ final class CardCell: UICollectionViewCell {
             subview.removeFromSuperview()
         }
         
-        // 캘린더 버튼들의 이미지뷰도 제거
+        // 캘린더 버튼들의 이미지뷰도 제거 - 새 메서드 호출
         cleanupCalendarButtonImages()
     }
     
@@ -370,6 +368,10 @@ final class CardCell: UICollectionViewCell {
     }
     
     func createCalendarGrid(with dayCardData: [Int: DayCard] = [:]) {
+        // 기존 그리드 초기화 - 모든 기존 버튼 제거
+        for subview in calendarGridView.subviews {
+            subview.removeFromSuperview()
+        }
         
         let calendar = Calendar.current
         
@@ -430,29 +432,55 @@ final class CardCell: UICollectionViewCell {
                 addTodayIndicator(to: dayButton)
             }
             
-            if let dayCard = dayCardData[day], !dayCard.symptoms.isEmpty {
-                let maxSeverity = dayCard.symptoms.max { $0.severity < $1.severity }?.severity ?? 1
-                addSymptomIndicator(to: dayButton, severity: maxSeverity)
-            }
-            // 증상이 없고 이미지가 있으면 이미지 표시 (우선순위 2)
-            else if let dayCard = dayCardData[day], !dayCard.imageRecords.isEmpty,
-                    let imageRecord = dayCard.imageRecords.first,
-                    let thumbnailPath = imageRecord.thumbnailImagePath {
-                addImageIndicator(to: dayButton, imagePath: thumbnailPath)
+            // 중요: 모드에 따라 다른 표시 방식 적용
+            if let dayCard = dayCardData[day] {
+                if isShowingSymptoms { // 증상 모드
+                    // 증상이 있는 경우에만 표시
+                    if !dayCard.symptoms.isEmpty {
+                        let maxSeverity = dayCard.symptoms.max { $0.severity < $1.severity }?.severity ?? 1
+                        addSymptomIndicator(to: dayButton, severity: maxSeverity)
+                    } else {
+                        // 증상이 없는 경우 표시 초기화
+                        resetButtonDisplay(dayButton)
+                    }
+                } else { // 사진 모드
+                    // 이미지가 있는 경우에만 표시
+                    if !dayCard.imageRecords.isEmpty,
+                       let imageRecord = dayCard.imageRecords.first,
+                       let thumbnailPath = imageRecord.thumbnailImagePath {
+                        addImageIndicator(to: dayButton, imagePath: thumbnailPath)
+                    } else {
+                        // 이미지가 없는 경우 표시 초기화
+                        resetButtonDisplay(dayButton)
+                    }
+                }
+            } else {
+                // 해당 날짜에 데이터가 없는 경우 표시 초기화
+                resetButtonDisplay(dayButton)
             }
         }
     }
+    
+    private func resetButtonDisplay(_ button: UIButton) {
+        // 이전에 추가된 이미지뷰나 표시기 제거
+        for subview in button.subviews {
+            if subview is UIImageView || (subview is UIView && subview != button.titleLabel) {
+                subview.removeFromSuperview()
+            }
+        }
+        
+        // 텍스트 표시 복원
+        button.titleLabel?.isHidden = false
+        button.setTitleColor(nil, for: .normal) // 기본 색상으로 복원
+    }
+
     
     private func addSymptomIndicator(to button: UIButton, severity: Int) {
         let isSmallScreen = UIScreen.main.bounds.height <= 667
         let indicatorSize: CGFloat = isSmallScreen ? 20 : 24
         
-        // 기존 이미지뷰 제거
-        for subview in button.subviews {
-            if subview is UIImageView {
-                subview.removeFromSuperview()
-            }
-        }
+        // 기존 이미지뷰나 표시기 제거
+        resetButtonDisplay(button)
         
         // 증상 심각도에 따른 색상 지정
         var indicatorColor: UIColor
@@ -491,24 +519,20 @@ final class CardCell: UICollectionViewCell {
         button.titleLabel?.isHidden = true
         button.setTitleColor(.clear, for: .normal)
     }
-    
+
+    // 이미지 표시 메서드 수정
     private func addImageIndicator(to button: UIButton, imagePath: String?) {
         guard let imagePath = imagePath else {
             // 이미지 없음 - 텍스트 표시 복원
-            button.titleLabel?.isHidden = false
-            button.setTitleColor(nil, for: .normal)
+            resetButtonDisplay(button)
             return
         }
         
         let isSmallScreen = UIScreen.main.bounds.height <= 667
         let indicatorSize: CGFloat = isSmallScreen ? 18 : 22
         
-        // 혹시 이전에 추가된 이미지 뷰가 있다면 제거
-        for subview in button.subviews {
-            if subview is UIImageView {
-                subview.removeFromSuperview()
-            }
-        }
+        // 기존 이미지뷰나 표시기 제거
+        resetButtonDisplay(button)
         
         // 실제 이미지가 존재하는지 먼저 확인
         if let thumbnail = ImageManager.shared.loadThumbnailImage(from: imagePath) {
@@ -579,22 +603,22 @@ final class CardCell: UICollectionViewCell {
         )
     }
     
-    private func addSymptomIndicator(to button: UIButton) {
-        let isSmallScreen = UIScreen.main.bounds.height <= 667
-        let indicatorSize: CGFloat = isSmallScreen ? 16 : 20
-        
-        let indicator = UIView()
-        indicator.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
-        indicator.layer.cornerRadius = indicatorSize / 2
-        
-        button.addSubview(indicator)
-        indicator.center = CGPoint(x: button.frame.width / 2, y: button.frame.height / 2)
-        indicator.frame.size = CGSize(width: indicatorSize, height: indicatorSize)
-        
-        // Bring the text to front
-        button.bringSubviewToFront(button.titleLabel!)
-    }
-    
+//    private func addSymptomIndicator(to button: UIButton) {
+//        let isSmallScreen = UIScreen.main.bounds.height <= 667
+//        let indicatorSize: CGFloat = isSmallScreen ? 16 : 20
+//        
+//        let indicator = UIView()
+//        indicator.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
+//        indicator.layer.cornerRadius = indicatorSize / 2
+//        
+//        button.addSubview(indicator)
+//        indicator.center = CGPoint(x: button.frame.width / 2, y: button.frame.height / 2)
+//        indicator.frame.size = CGSize(width: indicatorSize, height: indicatorSize)
+//        
+//        // Bring the text to front
+//        button.bringSubviewToFront(button.titleLabel!)
+//    }
+//    
     // MARK: - Flipping Methods
     func flipToCalendar(animated: Bool = true) {
         // 이미 뒤집힌 상태면 종료
@@ -696,6 +720,22 @@ final class CardCell: UICollectionViewCell {
             }
             messageLabel.setNeedsDisplay()
             messageLabel.layoutIfNeeded()
+        }
+        
+        // 중요: 모드 변경 저장
+        self.isShowingSymptoms = isShowing
+        
+        // 캘린더 모드인 경우 그리드 다시 그리기
+        if isFlipped {
+            // 클린업 및 재생성을 위해 prepareForReuse 호출
+            prepareForReuse()
+            // 타이틀과 같은 기본 정보 보존
+            if let label = self.monthLabel.text {
+                self.monthLabel.text = label
+            }
+            if let label = self.calendarMonthLabel.text {
+                self.calendarMonthLabel.text = label
+            }
         }
     }
     

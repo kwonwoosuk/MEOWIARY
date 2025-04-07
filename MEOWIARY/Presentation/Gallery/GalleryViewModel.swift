@@ -124,54 +124,52 @@ final class GalleryViewModel: BaseViewModel {
   }
   
   // MARK: - Methods
-  private func loadImageData(year: Int, month: Int) -> Observable<[ImageData]> {
-    return Observable.create { [weak self] observer in
-      guard let self = self else {
-        observer.onNext([])
-        observer.onCompleted()
-        return Disposables.create()
-      }
-      
-      // Realm에서 특정 년/월의 DayCard 가져오기
-      let dayCards = self.dayCardRepository.getDayCards(year: year, month: month)
-      
-      // 날짜별로 그룹화된 대표 이미지 데이터 배열 생성
-      var imageDataList: [ImageData] = []
-      let groupedDayCards = Dictionary(grouping: dayCards, by: { $0.day })
-      
-      for (day, dayCardsInDay) in groupedDayCards.sorted(by: { $0.key > $1.key }) {
-        // 해당 날짜의 첫 번째 DayCard에서 대표 이미지를 선택
-        if let firstDayCard = dayCardsInDay.first,
-           let firstImageRecord = firstDayCard.imageRecords.first,
-           let originalPath = firstImageRecord.originalImagePath,
-           let thumbnailPath = firstImageRecord.thumbnailImagePath {
-          
-          let fileExists = self.imageManager.checkImageFileExists(path: originalPath)
-          
-          if fileExists {
-            let imageData = ImageData(
-              id: firstImageRecord.id,
-              originalPath: originalPath,
-              thumbnailPath: thumbnailPath,
-              isFavorite: firstImageRecord.isFavorite,
-              createdAt: firstDayCard.date,
-              dayCardId: firstDayCard.id,
-              notes: firstDayCard.notes,
-              year: firstDayCard.year,
-              month: firstDayCard.month,
-              day: firstDayCard.day
-            )
-            imageDataList.append(imageData)
-          }
+    private func loadImageData(year: Int, month: Int) -> Observable<[ImageData]> {
+        return Observable.create { [weak self] observer in
+            guard let self = self else {
+                observer.onNext([])
+                observer.onCompleted()
+                return Disposables.create()
+            }
+            
+            let dayCards = self.dayCardRepository.getDayCards(year: year, month: month)
+                .filter { $0.symptoms.isEmpty } // 증상이 없는 DayCard만
+            
+            var imageDataList: [ImageData] = []
+            let groupedDayCards = Dictionary(grouping: dayCards, by: { $0.day })
+            
+            for (day, dayCardsInDay) in groupedDayCards.sorted(by: { $0.key > $1.key }) {
+                if let firstDayCard = dayCardsInDay.first,
+                   let firstImageRecord = firstDayCard.imageRecords.first,
+                   let originalPath = firstImageRecord.originalImagePath,
+                   let thumbnailPath = firstImageRecord.thumbnailImagePath {
+                    
+                    let fileExists = self.imageManager.checkImageFileExists(path: originalPath)
+                    
+                    if fileExists {
+                        let imageData = ImageData(
+                            id: firstImageRecord.id,
+                            originalPath: originalPath,
+                            thumbnailPath: thumbnailPath,
+                            isFavorite: firstImageRecord.isFavorite,
+                            createdAt: firstDayCard.date,
+                            dayCardId: firstDayCard.id,
+                            notes: firstDayCard.notes,
+                            year: firstDayCard.year,
+                            month: firstDayCard.month,
+                            day: firstDayCard.day
+                        )
+                        imageDataList.append(imageData)
+                    }
+                }
+            }
+            
+            observer.onNext(imageDataList)
+            observer.onCompleted()
+            
+            return Disposables.create()
         }
-      }
-      
-      observer.onNext(imageDataList)
-      observer.onCompleted()
-      
-      return Disposables.create()
     }
-  }
   
   // 즐겨찾기 토글
   func toggleFavorite(imageId: String) -> Observable<Void> {

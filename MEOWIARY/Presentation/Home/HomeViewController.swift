@@ -412,6 +412,8 @@ final class HomeViewController: BaseViewController {
                     }
                     self.toggleViewButton.layoutIfNeeded()
                 }
+                
+                
             })
             .disposed(by: disposeBag)
         

@@ -200,22 +200,18 @@ class HomeViewModel: BaseViewModel {
             print("일반 기록 모드 활성화")
         }
     }
-  
     func fetchData() async {
-        // 현재 연도와 월에 대한 데이터 가져오기
         let year = yearSubject.value
         let month = monthSubject.value
         
-        // 필요한 경우 날씨 데이터 가져오기
         await fetchWeatherData()
         
-        // 증상 기록 가져오기 (증상 모드일 때 사용)
-        fetchSymptomRecords(year: year, month: month)
-        
-        // DayCard 데이터 가져오기 (일반 모드일 때 사용)
-        fetchDayCardData(year: year, month: month)
+        if isShowingSymptomsSubject.value {
+            fetchSymptomRecords(year: year, month: month)
+        } else {
+            fetchDayCardData(year: year, month: month)
+        }
     }
-  
   private func fetchWeatherData() async {
     let result = await weatherService.fetchCurrentWeather()
     
