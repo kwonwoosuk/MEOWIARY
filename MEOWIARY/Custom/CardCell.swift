@@ -269,15 +269,13 @@ final class CardCell: UICollectionViewCell {
     func configure(forMonth month: Int, year: Int = Calendar.current.component(.year, from: Date()), dayCardData: [Int: DayCard] = [:]) {
         // 셀 태그 설정 (검색용)
         self.tag = month
+        self.month = month
+        self.year = year
         
         // 확실히 레이아웃 갱신
         self.layoutIfNeeded()
         
-        // 현재 년도와 월 저장
-        self.year = year
-        self.month = month
-        
-        // Set month name (1-based index)
+        // 월 이름 설정 (1-based index)
         let monthNames = ["1월", "2월", "3월", "4월", "5월", "6월",
                           "7월", "8월", "9월", "10월", "11월", "12월"]
         
@@ -305,6 +303,17 @@ final class CardCell: UICollectionViewCell {
         // 캘린더 그리드 업데이트 (플립 상태인 경우만)
         createCalendarGrid(with: dayCardData)
         
+        // 현재 모드에 맞는 메시지 설정
+        updateSymptomView(isShowing: isShowingSymptoms)
+    }
+
+    // 별도로 모드 관련 파라미터를 포함한 configure 메서드 추가 (필요시 사용)
+    func configure(with dayCardData: [Int: DayCard] = [:], isSymptomMode: Bool = false, month: Int, year: Int = Calendar.current.component(.year, from: Date())) {
+        // 증상 모드 상태 설정
+        self.isShowingSymptoms = isSymptomMode
+        
+        // 기존 configure 메서드 호출
+        configure(forMonth: month, year: year, dayCardData: dayCardData)
     }
     
     // 월별로 다른 색상 적용
@@ -462,16 +471,40 @@ final class CardCell: UICollectionViewCell {
     }
     
     private func resetButtonDisplay(_ button: UIButton) {
-        // 이전에 추가된 이미지뷰나 표시기 제거
+        // 기존 서브뷰 제거
         for subview in button.subviews {
-            if subview is UIImageView || (subview is UIView && subview != button.titleLabel) {
+            if subview is UIImageView || (subview != button.titleLabel) {
                 subview.removeFromSuperview()
             }
         }
         
-        // 텍스트 표시 복원
+        // 버튼 태그를 이용해 날짜 가져오기
+        let day = button.tag
+        
+        // 날짜를 기반으로 요일 계산
+        var components = DateComponents()
+        components.year = year
+        components.month = month
+        components.day = day
+        
+        if let date = Calendar.current.date(from: components) {
+            let weekday = Calendar.current.component(.weekday, from: date) - 1 // 0이 일요일
+            
+            // 요일에 맞는 색상 다시 설정
+            if weekday == 0 {  // 일요일
+                button.setTitleColor(UIColor(hex: "F44336"), for: .normal) // 빨간색
+            } else if weekday == 6 {  // 토요일
+                button.setTitleColor(UIColor(hex: "42A5F7"), for: .normal) // 파란색
+            } else {
+                button.setTitleColor(DesignSystem.Color.Tint.darkGray.inUIColor(), for: .normal)
+            }
+        } else {
+            // 날짜 변환 실패 시 기본 색상으로
+            button.setTitleColor(DesignSystem.Color.Tint.darkGray.inUIColor(), for: .normal)
+        }
+        
+        // 텍스트 보이게 설정
         button.titleLabel?.isHidden = false
-        button.setTitleColor(nil, for: .normal) // 기본 색상으로 복원
     }
 
     

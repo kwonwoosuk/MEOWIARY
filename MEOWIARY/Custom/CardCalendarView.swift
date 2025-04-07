@@ -98,16 +98,31 @@ final class CardCalendarView: BaseView {
     
     func updateData(year: Int, month: Int, forceReload: Bool = false) {
         // Realm에서 최신 데이터 가져오기
-        dayCardData = dayCardRepository.getDayCardsMapForMonth(year: year, month: month)
+        let allDayCardData = dayCardRepository.getDayCardsMapForMonth(year: year, month: month)
         
-        // 증상 모드일 때도 적절히 처리
+        // 증상 모드일 때
         if isShowingSymptoms {
+            // 증상이 있는 DayCard만 필터링
+            let symptomDayCardData = allDayCardData.filter { (_, dayCard) in
+                return !dayCard.symptoms.isEmpty
+            }
+            dayCardData = symptomDayCardData
+            
             // 증상 모드에 맞게 표시
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 self.refreshWithSymptomData()
             }
-        } else {
+        }
+        // 사진 모드일 때
+        else {
+            // 중요: 사진 모드에서는 증상이 없는 DayCard만 표시 또는
+            // 증상과 함께 기록된 이미지는 제외
+            let photoDayCardData = allDayCardData.filter { (_, dayCard) in
+                return dayCard.symptoms.isEmpty && !dayCard.imageRecords.isEmpty
+            }
+            dayCardData = photoDayCardData
+            
             // 캘린더 그리드 업데이트 (플립 상태일 때만)
             if isCalendarMode || forceReload {
                 // 현재 보이는 셀만 업데이트 - 메인 스레드에서 UI 작업
@@ -378,30 +393,43 @@ final class CardCalendarView: BaseView {
     }
     
     func refreshVisibleCells() {
-        // 현재 보이는 셀만 찾아서 갱신 (데이터소스는 이미 업데이트되어 있음)
+        // 현재 보이는 셀만 찾아서 갱신
         for visibleCell in cardCollectionView.visibleCells {
             if let cardCell = visibleCell as? CardCell,
                let indexPath = cardCollectionView.indexPath(for: visibleCell) {
                 
-                // 셀의 인덱스로 월 계산
                 let month = indexPath.item + 1
                 
-                // 최신 데이터로 다시 구성
-                let monthData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
-                
-                // 중요: 증상 모드 상태 설정
-                cardCell.isShowingSymptoms = self.isShowingSymptoms
-                
-                // 셀 모드에 따라 적절한 메서드 호출
-                if cardCell.isFlipped {
-                    cardCell.prepareForReuse() // 완전 초기화
-                    cardCell.createCalendarGrid(with: monthData) // 현재 모드에 맞게 그리드 새로 생성
-                    cardCell.updateSymptomView(isShowing: isShowingSymptoms) // 메시지 업데이트
+                // 현재 모드에 따라 적절한 데이터 필터링
+                var monthData: [Int: DayCard]
+                if isShowingSymptoms {
+                    // 증상 모드에서는 증상이 있는 데이터만 표시
+                    let allData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
+                    monthData = allData.filter { $0.value.symptoms.count > 0 }
                 } else {
-                    cardCell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
+                    // 일반 모드에서는 증상이 없는 데이터만 표시
+                    let allData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
+                    monthData = allData.filter { $0.value.symptoms.isEmpty }
                 }
                 
-                print("CardCalendarView: 셀 새로고침 - \(month)월, 증상 모드: \(isShowingSymptoms)")
+                // 셀에 모드 설정
+                cardCell.isShowingSymptoms = self.isShowingSymptoms
+                
+                // 셀 갱신
+                if cardCell.isFlipped {
+                    cardCell.prepareForReuse()
+                    cardCell.createCalendarGrid(with: monthData)
+                    // 메시지 갱신
+                    if isShowingSymptoms {
+                        cardCell.getMessageLabel().text = "날짜를 선택하여 증상 기록을 확인하세요."
+                    } else {
+                        cardCell.getMessageLabel().text = "날짜를 선택해 일기를 작성해보세요."
+                    }
+                } else {
+                    cardCell.configure(with: monthData, isSymptomMode: isShowingSymptoms, month: month, year: currentYear)
+                }
+                
+                print("CardCalendarView: 셀 새로고침 - \(month)월")
             }
         }
     }
@@ -469,31 +497,39 @@ extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CardCell", for: indexPath) as? CardCell else {
-            return UICollectionViewCell()
+            guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CardCell", for: indexPath) as? CardCell else {
+                return UICollectionViewCell()
+            }
+            
+            let month = indexPath.item + 1
+            // 현재 모드에 맞게 데이터 필터링
+            let allData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
+            let monthData = isShowingSymptoms ?
+                allData.filter { !$0.value.symptoms.isEmpty } : // 증상 모드: 증상 있는 것만
+                allData.filter { $0.value.symptoms.isEmpty }   // 사진 모드: 증상 없는 것만
+            
+            // 수정된 configure 메서드 호출
+            cell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
+            // 증상 모드 상태 전달
+            cell.isShowingSymptoms = isShowingSymptoms
+            cell.updateSymptomView(isShowing: isShowingSymptoms)
+            cellPrepared(cell: cell, forMonth: month)
+            
+            cell.dateTapped
+                .subscribe(onNext: { [weak self] date in
+                    self?.dateSelected.onNext(date)
+                })
+                .disposed(by: cell.disposeBag)
+            
+            if isCalendarMode {
+                cell.flipToCalendar(animated: false)
+                cell.createCalendarGrid(with: monthData)
+            } else {
+                cell.flipToCard(animated: false)
+            }
+            
+            return cell
         }
-        
-        let month = indexPath.item + 1
-        let monthData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
-        
-        cell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
-        cellPrepared(cell: cell, forMonth: month)
-        
-        cell.dateTapped
-            .subscribe(onNext: { [weak self] date in
-                self?.dateSelected.onNext(date)
-            })
-            .disposed(by: cell.disposeBag)
-        
-        if isCalendarMode {
-            cell.flipToCalendar(animated: false)
-            cell.createCalendarGrid(with: monthData)
-        } else {
-            cell.flipToCard(animated: false)
-        }
-        
-        return cell
-    }
     // 스크롤 후 현재 보이는 셀에 대한 처리 추가
     
     
