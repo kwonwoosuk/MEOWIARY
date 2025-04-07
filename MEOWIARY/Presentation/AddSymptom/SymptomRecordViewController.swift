@@ -294,7 +294,7 @@ final class SymptomRecordViewController: BaseViewController {
         severityValueLabel.snp.makeConstraints { make in
             make.centerY.equalTo(severityLabel)
             make.trailing.equalTo(dateLabel)
-            make.width.equalTo(40)
+            make.width.equalTo(120)
         }
         
         // 심각도 슬라이더
@@ -370,6 +370,14 @@ final class SymptomRecordViewController: BaseViewController {
         // 컬렉션뷰 설정
         imagesCollectionView.delegate = self
         imagesCollectionView.dataSource = self
+        
+        // 초기 심각도 레이블 설정 (1: 일상적인 증상)
+        severityValueLabel.text = "일상적인 증상"
+        severityValueLabel.textAlignment = .right
+        
+        // 슬라이더 초기값 설정
+        severitySlider.value = 1
+        severitySlider.thumbTintColor = DesignSystem.Color.Status.negative1.inUIColor()
     }
     
     private func updateImageViews() {
@@ -481,23 +489,32 @@ final class SymptomRecordViewController: BaseViewController {
             .map { Int($0.rounded()) }
             .do(onNext: { [weak self] value in
                 self?.severityRelay.accept(value)
-                self?.severityValueLabel.text = "\(value) / 5"
                 
-                // 심각도에 따른 색상 변경
+                // 심각도에 따른 텍스트 변경
+                let severityText: String
                 switch value {
                 case 1:
+                    severityText = "일상적인 증상"
                     self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative1.inUIColor()
                 case 2:
+                    severityText = "가벼운 증상"
                     self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative2.inUIColor()
                 case 3:
+                    severityText = "중증 증상"
                     self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative3.inUIColor()
                 case 4:
+                    severityText = "심한 증상"
                     self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative4.inUIColor()
                 case 5:
+                    severityText = "응급 고위험"
                     self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative5.inUIColor()
                 default:
+                    severityText = "일상적인 증상"
                     self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative1.inUIColor()
                 }
+                
+                // 텍스트만 표시 (설명만)
+                self?.severityValueLabel.text = severityText
             })
             .subscribe()
             .disposed(by: disposeBag)
