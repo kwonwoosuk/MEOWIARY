@@ -237,8 +237,8 @@ final class MWTabBarController: UITabBarController {
     optionView.symptomRecordButtonTapped
       .subscribe(onNext: { [weak self] in
         self?.dismissDiaryOptions()
-        self?.showToast(message: "증상기록기능이 곧 지원될 에정입니다...")
-//        self?.presentSymptomRecordController()
+//        self?.showToast(message: "증상기록기능이 곧 지원될 에정입니다...") // 출시떄 이러면 안되실게요
+        self?.presentSymptomRecordController()
       })
       .disposed(by: disposeBag)
     

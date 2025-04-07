@@ -297,27 +297,35 @@ final class DetailViewController: BaseViewController {
             
             alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { [weak self] _ in
                 guard let self = self else { return }
-                
-                // 삭제 작업 시작 전 로딩 표시 (필요한 경우)
-                // self.showLoadingIndicator()
+                                
                 
                 self.viewModel.deleteCurrentDayCards()
-                    .subscribe(
-                        onNext: { [weak self] _ in
-                            print("삭제 성공")
-                            // 로딩 표시 숨기기 (필요한 경우)
-                            // self?.hideLoadingIndicator()
-                            self?.onDelete?()
-                            self?.dismiss(animated: true)
-                        },
-                        onError: { [weak self] error in
-                            print("삭제 실패: \(error)")
-                            // 로딩 표시 숨기기 (필요한 경우)
-                            // self?.hideLoadingIndicator()
-                            self?.showErrorAlert(message: "삭제 중 오류가 발생했습니다")
-                        }
-                    )
-                    .disposed(by: self.disposeBag)
+                     .subscribe(
+                         onNext: { [weak self] _ in
+                             print("삭제 성공")
+                             // 로딩 표시 숨기기 (필요한 경우)
+                             // self?.hideLoadingIndicator()
+                             
+                             // 삭제 성공 시 알림 발송
+                             NotificationCenter.default.post(
+                                 name: Notification.Name(DayCardDeletedNotification),
+                                 object: nil,
+                                 userInfo: ["year": self?.viewModel.year ?? 0,
+                                            "month": self?.viewModel.month ?? 0,
+                                            "day": self?.viewModel.day ?? 0]
+                             )
+                             
+                             self?.onDelete?()
+                             self?.dismiss(animated: true)
+                         },
+                         onError: { [weak self] error in
+                             print("삭제 실패: \(error)")
+                             // 로딩 표시 숨기기 (필요한 경우)
+                             // self?.hideLoadingIndicator()
+                             self?.showErrorAlert(message: "삭제 중 오류가 발생했습니다")
+                         }
+                     )
+                     .disposed(by: self.disposeBag)
             })
             
             self?.present(alert, animated: true)

@@ -40,7 +40,7 @@ class HomeViewModel: BaseViewModel {
   }
   
   // MARK: - Private Properties
-  private let yearSubject = BehaviorRelay<Int>(value: Calendar.current.component(.year, from: Date()))
+  let yearSubject = BehaviorRelay<Int>(value: Calendar.current.component(.year, from: Date()))
   private let monthSubject = BehaviorRelay<Int>(value: Calendar.current.component(.month, from: Date()))
   private let isShowingSymptomsSubject = BehaviorRelay<Bool>(value: false)
   private let weatherInfoRelay = BehaviorRelay<Weather?>(value: nil)

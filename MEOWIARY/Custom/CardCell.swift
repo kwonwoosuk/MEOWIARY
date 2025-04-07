@@ -11,7 +11,7 @@ import Kingfisher
 final class CardCell: UICollectionViewCell {
   
   // MARK: - Properties
-  private var monthImages: [String] = [
+  private var monthImages: [String] = [ 
     "jan_image", "feb_image", "mar_image", "apr_image",
     "may_image", "jun_image", "jul_image", "aug_image",
     "sep_image", "oct_image", "nov_image", "dec_image"
@@ -139,38 +139,48 @@ final class CardCell: UICollectionViewCell {
     }
   }
   
-  private func addImageIndicator(to button: UIButton, imagePath: String?) {
-    guard let imagePath = imagePath else { return }
-    
-    let isSmallScreen = UIScreen.main.bounds.height <= 667
-    let indicatorSize: CGFloat = isSmallScreen ? 18 : 22
-    
-    let imageView = UIImageView()
-    imageView.contentMode = .scaleAspectFill
-    imageView.clipsToBounds = true
-    imageView.layer.cornerRadius = indicatorSize / 2
-    
-    // 썸네일 이미지 로드
-    if let thumbnail = ImageManager.shared.loadThumbnailImage(from: imagePath) {
-      imageView.image = thumbnail
-    } else {
-      // 기본 이미지로 대체
-      imageView.image = UIImage(systemName: "photo")
-      imageView.tintColor = .white
-      imageView.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
+    private func addImageIndicator(to button: UIButton, imagePath: String?) {
+        guard let imagePath = imagePath else { return }
+        
+        let isSmallScreen = UIScreen.main.bounds.height <= 667
+        let indicatorSize: CGFloat = isSmallScreen ? 18 : 22
+        
+        // 혹시 이전에 추가된 이미지 뷰가 있다면 제거
+        for subview in button.subviews {
+            if subview is UIImageView {
+                subview.removeFromSuperview()
+            }
+        }
+        
+        let imageView = UIImageView()
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        imageView.layer.cornerRadius = indicatorSize / 2
+        
+        // 썸네일 이미지 로드
+        if let thumbnail = ImageManager.shared.loadThumbnailImage(from: imagePath) {
+            imageView.image = thumbnail
+        } else {
+            // 기본 이미지로 대체
+            imageView.image = UIImage(systemName: "photo")
+            imageView.tintColor = .white
+            imageView.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
+        }
+        
+        button.addSubview(imageView)
+        imageView.frame = CGRect(
+            x: (button.frame.width - indicatorSize) / 2,
+            y: (button.frame.height - indicatorSize) / 2,
+            width: indicatorSize,
+            height: indicatorSize
+        )
+        
+        // 이미지가 있을 때 날짜 텍스트 강제로 완전히 숨기기
+        button.titleLabel?.isHidden = true
+        button.setTitleColor(.clear, for: .normal)
+        button.setTitleColor(.clear, for: .normal)
     }
     
-    button.addSubview(imageView)
-    imageView.frame = CGRect(
-      x: (button.frame.width - indicatorSize) / 2,
-      y: (button.frame.height - indicatorSize) / 2,
-      width: indicatorSize,
-      height: indicatorSize
-    )
-    
-    // 날짜 텍스트를 앞으로 가져와 겹치지 않도록 함
-    button.bringSubviewToFront(button.titleLabel!)
-  }
   
   // MARK: - Setup
   private func setupUI() {
@@ -383,21 +393,7 @@ final class CardCell: UICollectionViewCell {
   }
   
   func createCalendarGrid(with dayCardData: [Int: DayCard] = [:]) {
-      // 그리드 변경 전에 확인
-//      if calendarGridView.bounds.width <= 0 {
-//          // 레이아웃이 아직 계산되지 않았으므로 지연 실행
-//          DispatchQueue.main.async { [weak self] in
-//              self?.createCalendarGrid(with: dayCardData)
-//          }
-//          return
-//      }
-      
-      // Remove previous calendar grid
-//      for subview in calendarGridView.subviews {
-//          subview.removeFromSuperview()
-//      }
-      
-      // 년도와 월 설정
+
       let calendar = Calendar.current
       
       // Get first day of month and number of days
@@ -458,10 +454,13 @@ final class CardCell: UICollectionViewCell {
           }
           
           // 일기 이미지 표시
-        if let dayCard = dayCardData[day], !dayCard.imageRecords.isEmpty,
+          if let dayCard = dayCardData[day], !dayCard.imageRecords.isEmpty,
                let imageRecord = dayCard.imageRecords.first,
                let thumbnailPath = imageRecord.thumbnailImagePath {
-                addImageIndicator(to: dayButton, imagePath: thumbnailPath)
+              addImageIndicator(to: dayButton, imagePath: thumbnailPath)
+              // 이미지가 있으면 날짜 텍스트 명시적으로 완전히 숨기기
+              dayButton.titleLabel?.isHidden = true
+              dayButton.setTitleColor(.clear, for: .normal)
             }
           
           // 증상 표시
@@ -529,43 +528,42 @@ final class CardCell: UICollectionViewCell {
   }
   
   // MARK: - Flipping Methods
-  func flipToCalendar(animated: Bool = true) {
-    // 이미 뒤집힌 상태면 그리드만 업데이트하고 종료
-    if isFlipped {
-      createCalendarGrid()
-      return
-    }
-    
-    if animated {
-      // 더 뚜렷한 애니메이션 효과를 위해 속성 조정
-      UIView.transition(
-        with: self.contentView,
-        duration: 0.4,
-        options: [.transitionFlipFromLeft, .allowUserInteraction],
-        animations: {
-          self.containerView.isHidden = true
-          self.calendarContainerView.isHidden = false
-        },
-        completion: { _ in
-          self.isFlipped = true
-          self.createCalendarGrid() // 그리드 다시 생성
-          print("CardCell: \(self.month)월 카드 뒤집기 애니메이션 완료")
+      func flipToCalendar(animated: Bool = true) {
+        // 이미 뒤집힌 상태면 종료 (createCalendarGrid는 외부에서 호출하도록 수정)
+        if isFlipped {
+          return
         }
-      )
-    } else {
-      // 애니메이션 없이 즉시 상태 변경
-      containerView.isHidden = true
-      calendarContainerView.isHidden = false
-      isFlipped = true
-      createCalendarGrid()
-    }
+        
+        if animated {
+          // 더 뚜렷한 애니메이션 효과를 위해 속성 조정
+          UIView.transition(
+            with: self.contentView,
+            duration: 0.4,
+            options: [.transitionFlipFromLeft, .allowUserInteraction],
+            animations: {
+              self.containerView.isHidden = true
+              self.calendarContainerView.isHidden = false
+            },
+            completion: { _ in
+              self.isFlipped = true
+              // 그리드 생성은 외부에서 데이터와 함께 호출되도록 변경
+              print("CardCell: \(self.month)월 카드 뒤집기 애니메이션 완료")
+            }
+          )
+        } else {
+          // 애니메이션 없이 즉시 상태 변경
+          containerView.isHidden = true
+          calendarContainerView.isHidden = false
+          isFlipped = true
+          // 그리드 생성은 외부에서 호출
+        }
+        
+        // 디버그 로그
+        if animated {
+          print("CardCell: \(month)월 카드를 캘린더로 플립 시작 (태그: \(self.tag))")
+        }
+      }
     
-    // 디버그 로그
-    if animated {
-      print("CardCell: \(month)월 카드를 캘린더로 플립 시작 (태그: \(self.tag))")
-    }
-  }
-  
   // 뒤로 플립 애니메이션 개선
   func flipToCard(animated: Bool = true) {
     // 이미 카드 상태면 무시

@@ -15,9 +15,9 @@ final class DetailViewModel: BaseViewModel {
     
     // MARK: - Properties
     var disposeBag = DisposeBag()
-    private let year: Int
-    private let month: Int
-    private let day: Int
+    let year: Int
+     let month: Int
+     let day: Int
     let imageManager: ImageManager
     private let dayCardRepository = DayCardRepository()
     private let imageRecordRepository = ImageRecordRepository()
