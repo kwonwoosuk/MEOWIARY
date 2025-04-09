@@ -1,5 +1,5 @@
 //
-//  CardCalendarView.swift - 페이징 관련 코드 수정
+//
 //
 
 import UIKit

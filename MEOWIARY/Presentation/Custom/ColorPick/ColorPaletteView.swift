@@ -232,17 +232,14 @@ class ColorPaletteView: BaseView {
     
     private func updateSelectedCell(indexPath: IndexPath?) {
         // 모든 셀의 선택 상태 초기화
-        for cell in colorCollectionView.visibleCells {
-            if let colorCell = cell as? ColorPaletteCell {
-                colorCell.isSelected = false
-            }
-        }
-        
-        // 선택된 셀만 선택 상태로 설정
-        if let indexPath = indexPath {
-            let cell = colorCollectionView.cellForItem(at: indexPath) as? ColorPaletteCell
-            cell?.isSelected = true
-        }
+        for visibleIndexPath in colorCollectionView.indexPathsForVisibleItems {
+              colorCollectionView.deselectItem(at: visibleIndexPath, animated: false)
+          }
+          
+          // 선택된 셀만 선택 상태로 설정
+          if let indexPath = indexPath {
+              colorCollectionView.selectItem(at: indexPath, animated: true, scrollPosition: [])
+          }
     }
     
     private func loadDefaultPalettes() {
@@ -382,6 +379,16 @@ extension ColorPaletteView: UICollectionViewDelegate {
         } else {
             // 색상 선택 시 선택 상태 업데이트
             selectedIndexPathRelay.accept(indexPath)
+            
+            // 선택된 셀에 피드백 추가
+            let cell = collectionView.cellForItem(at: indexPath) as? ColorPaletteCell
+            UIView.animate(withDuration: 0.1) {
+                cell?.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+            } completion: { _ in
+                UIView.animate(withDuration: 0.1) {
+                    cell?.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+                }
+            }
         }
     }
 }

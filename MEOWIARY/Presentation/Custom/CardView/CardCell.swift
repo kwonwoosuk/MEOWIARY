@@ -389,59 +389,25 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
     @objc private func optionsButtonTapped() {
         guard let viewController = findViewController() else { return }
         
-        // 옵션 팝업창 생성
-        let alertController = UIAlertController(
-            title: "\(month)월 카드 설정",
-            message: "카드 표시 방식을 선택하세요",
-            preferredStyle: .actionSheet
-        )
-        
-        // 색상 카드 모드 액션
-        let colorCardAction = UIAlertAction(title: "색상 카드", style: .default) { [weak self] _ in
-            self?.setDisplayMode(.colorCard)
-        }
-        
-        // 대표 이미지 모드 액션
-        let featureImageAction = UIAlertAction(title: "대표 이미지", style: .default) { [weak self] _ in
-            self?.setDisplayMode(.featureImage)
-        }
-        
-        // 대표 이미지 설정 액션
-        let selectImageAction = UIAlertAction(title: "대표 이미지 직접 선택", style: .default) { [weak self] _ in
-            guard let self = self else { return }
-            if let action = self.selectFeatureImageAction {
-                action(self.year, self.month)
-            }
-        }
-        
-        // 색상 설정 액션 추가
-        let colorSettingAction = UIAlertAction(title: "색상 설정", style: .default) { [weak self] _ in
-            self?.showColorPaletteView()
-        }
-        
-        // 취소 액션
-        let cancelAction = UIAlertAction(title: "취소", style: .cancel)
-        
-        // 현재 모드에 체크 표시
-        if displayMode == .colorCard {
-            colorCardAction.setValue(true, forKey: "checked")
-        } else {
-            featureImageAction.setValue(true, forKey: "checked")
-        }
-        
-        alertController.addAction(colorCardAction)
-        alertController.addAction(featureImageAction)
-        alertController.addAction(selectImageAction)
-        alertController.addAction(colorSettingAction)  // 색상 설정 액션 추가
-        alertController.addAction(cancelAction)
-        
-        // iPad 지원
-        if let popoverController = alertController.popoverPresentationController {
-            popoverController.sourceView = optionsButton
-            popoverController.sourceRect = optionsButton.bounds
-        }
-        
-        viewController.present(alertController, animated: true)
+          let optionPopupView = CardOptionPopupView(month: month)
+          optionPopupView.delegate = self
+          optionPopupView.frame = viewController.view.bounds
+          
+          // 현재 선택된 모드에 맞게 버튼 강조 표시
+          let currentOption: CardOptionPopupView.OptionType
+          switch displayMode {
+          case .colorCard:
+              currentOption = .colorCard
+          case .featureImage:
+              currentOption = .featureImage
+          }
+          optionPopupView.updateSelectedOption(currentOption)
+          
+          // 뷰 컨트롤러의 뷰에 추가
+          viewController.view.addSubview(optionPopupView)
+          
+          // 애니메이션으로 표시
+          optionPopupView.showWithAnimation()
     }
     
     // 3. ColorPaletteView 표시 메서드 추가
@@ -1143,5 +1109,26 @@ extension CardCell: ColorPaletteViewDelegate {
                 self.colorPaletteBackgroundView = nil
             }
         }
+    }
+}
+
+extension CardCell: CardOptionPopupDelegate {
+    func didSelectOption(_ option: CardOptionPopupView.OptionType) {
+        switch option {
+        case .colorCard:
+            setDisplayMode(.colorCard)
+        case .colorSetting:
+            showColorPaletteView()
+        case .featureImage:
+            setDisplayMode(.featureImage)
+        case .selectFeatureImage:
+            if let action = selectFeatureImageAction {
+                action(year, month)
+            }
+        }
+    }
+    
+    func didCancelOptionSelection() {
+        // 취소 시 추가 작업이 필요하면 여기에 구현
     }
 }
