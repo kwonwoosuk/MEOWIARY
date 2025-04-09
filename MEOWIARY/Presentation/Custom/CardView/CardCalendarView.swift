@@ -433,6 +433,67 @@ final class CardCalendarView: BaseView {
             }
         }
     }
+    func handleFeatureImageSelection(for year: Int, month: Int) {
+           // 현재 보여지는 뷰 컨트롤러 찾기
+           guard let viewController = findViewController() else { return }
+           
+           // 해당 월의 이미지들 가져오기
+           let dayCards = dayCardRepository.getDayCards(year: year, month: month)
+           
+           var allImageRecords: [ImageRecord] = []
+           for dayCard in dayCards {
+               // 정상 이미지만 필터링 (썸네일 경로가 있는 것만)
+               let validRecords = dayCard.imageRecords.filter { $0.thumbnailImagePath != nil }
+               allImageRecords.append(contentsOf: validRecords)
+           }
+           
+           if allImageRecords.isEmpty {
+               // 이미지가 없는 경우 알림
+               let alert = UIAlertController(
+                   title: "이미지 없음",
+                   message: "\(month)월에 저장된 사진이 없습니다.",
+                   preferredStyle: .alert
+               )
+               alert.addAction(UIAlertAction(title: "확인", style: .default))
+               viewController.present(alert, animated: true)
+               return
+           }
+           
+           // 이미지 선택 화면 생성
+           let featureImageVC = FeatureImageSelectViewController(
+               year: year,
+               month: month,
+               imageRecords: Array(allImageRecords)
+           )
+           
+           // 이미지 선택 완료 시 콜백
+           featureImageVC.onImageSelected = { [weak self] image in
+               guard let self = self else { return }
+               
+               // 해당 월의 셀 찾기
+               if let cell = self.getCellForIndex(month - 1) as? CardCell {
+                   // 선택된 이미지 설정
+                   cell.setFeatureImage(image)
+               }
+           }
+           
+           // 모달로 표시
+           featureImageVC.modalPresentationStyle = .pageSheet
+           viewController.present(featureImageVC, animated: true)
+       }
+       
+       // 뷰컨트롤러 찾기
+       private func findViewController() -> UIViewController? {
+           var responder: UIResponder? = self
+           while responder != nil {
+               if let viewController = responder as? UIViewController {
+                   return viewController
+               }
+               responder = responder?.next
+           }
+           return nil
+       }
+
     
     func updateMonth(month: Int) {
         // 월 레이블 업데이트
@@ -506,14 +567,20 @@ extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate
             let allData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
             let monthData = isShowingSymptoms ?
                 allData.filter { !$0.value.symptoms.isEmpty } : // 증상 모드: 증상 있는 것만
-                allData.filter { $0.value.symptoms.isEmpty }   // 사진 모드: 증상 없는 것만
+                allData.filter { $0.value.symptoms.isEmpty }    // 사진 모드: 증상 없는 것만
             
             // 수정된 configure 메서드 호출
             cell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
+            
             // 증상 모드 상태 전달
             cell.isShowingSymptoms = isShowingSymptoms
             cell.updateSymptomView(isShowing: isShowingSymptoms)
             cellPrepared(cell: cell, forMonth: month)
+            
+            // 대표 이미지 선택 액션 설정 (기존 메서드에 추가)
+            cell.selectFeatureImageAction = { [weak self] (year, month) in
+                self?.handleFeatureImageSelection(for: year, month: month)
+            }
             
             cell.dateTapped
                 .subscribe(onNext: { [weak self] date in
@@ -530,7 +597,7 @@ extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate
             
             return cell
         }
-    // 스크롤 후 현재 보이는 셀에 대한 처리 추가
+    
     
     
     // 각 셀의 크기 설정 - 전체 화면 너비와 동일하게
