@@ -260,35 +260,44 @@ final class CardCalendarView: BaseView {
     }
     
     func flipAllToCalendar() {
-      // 이미 캘린더 모드면 무시
-      guard !isCalendarMode else { return }
-      
-      // 현재 데이터 로드
-      let cachedData = (0..<12).map { i -> (Int, [Int: DayCard]) in
-        return (i+1, dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: i+1))
-      }
-      
-      // 모든 셀의 애니메이션을 동시에 적용
-      for (month, monthData) in cachedData {
-        if let cell = getCellForIndex(month-1) {
-          // 모든 셀을 동시에 뒤집기 시작 (애니메이션 조정)
-          cell.flipToCalendar(animated: true)
-          
-          // 애니메이션 완료 후 그리드 생성
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            cell.createCalendarGrid(with: monthData)
-          }
+        // 이미 캘린더 모드면 무시
+        guard !isCalendarMode else { return }
+        
+        // 현재 데이터 로드
+        let cachedData = (0..<12).map { i -> (Int, [Int: DayCard]) in
+            return (i+1, dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: i+1))
         }
-      }
-      
-      // 애니메이션 완료 후에 모드 변경
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
-        guard let self = self else { return }
-        self.isCalendarMode = true
-        self.updateData(year: self.currentYear, month: self.currentMonth)
-      }
-      
-      print("CardCalendarView: 모든 카드를 캘린더로 플립 (일정한 속도로 애니메이션 적용)")
+        
+        // 중요: 각 셀의 현재 표시 모드를 저장
+        for i in 0..<12 {
+            if let cell = getCellForIndex(i) {
+                // 셀의 현재 모드를 저장 (명시적으로 저장 호출)
+                let displayModeKey = "display_mode_\(currentYear)_\(i+1)"
+                UserDefaults.standard.synchronize()
+            }
+        }
+        
+        // 모든 셀의 애니메이션을 동시에 적용
+        for (month, monthData) in cachedData {
+            if let cell = getCellForIndex(month-1) {
+                // 모든 셀을 동시에 뒤집기 시작 (애니메이션 조정)
+                cell.flipToCalendar(animated: true)
+                
+                // 애니메이션 완료 후 그리드 생성
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    cell.createCalendarGrid(with: monthData)
+                }
+            }
+        }
+        
+        // 애니메이션 완료 후에 모드 변경
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            guard let self = self else { return }
+            self.isCalendarMode = true
+            self.updateData(year: self.currentYear, month: self.currentMonth)
+        }
+        
+        print("CardCalendarView: 모든 카드를 캘린더로 플립 (일정한 속도로 애니메이션 적용)")
     }
     
     // 모든 카드를 원래 상태로 한 번에 되돌리기 (모든 셀에 애니메이션 적용)
@@ -301,6 +310,19 @@ final class CardCalendarView: BaseView {
             if let cell = getCellForIndex(i) {
                 // 현재 보이는 셀과 그 주변 셀에만 애니메이션 적용
                 cell.flipToCard()
+                
+                // 셀 모드를 명시적으로 다시 로드하고 UI 업데이트
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    // 카드 모드 전환 후 저장된 디스플레이 모드 복원을 위한 지연 호출
+                    let displayModeKey = "display_mode_\(self.currentYear)_\(i+1)"
+                    let useFeatureImage = UserDefaults.standard.bool(forKey: displayModeKey)
+                    
+                    if useFeatureImage {
+                        cell.setDisplayMode(.featureImage)
+                    } else {
+                        cell.setDisplayMode(.colorCard)
+                    }
+                }
             }
         }
         
@@ -434,66 +456,66 @@ final class CardCalendarView: BaseView {
         }
     }
     func handleFeatureImageSelection(for year: Int, month: Int) {
-           // 현재 보여지는 뷰 컨트롤러 찾기
-           guard let viewController = findViewController() else { return }
-           
-           // 해당 월의 이미지들 가져오기
-           let dayCards = dayCardRepository.getDayCards(year: year, month: month)
-           
-           var allImageRecords: [ImageRecord] = []
-           for dayCard in dayCards {
-               // 정상 이미지만 필터링 (썸네일 경로가 있는 것만)
-               let validRecords = dayCard.imageRecords.filter { $0.thumbnailImagePath != nil }
-               allImageRecords.append(contentsOf: validRecords)
-           }
-           
-           if allImageRecords.isEmpty {
-               // 이미지가 없는 경우 알림
-               let alert = UIAlertController(
-                   title: "이미지 없음",
-                   message: "\(month)월에 저장된 사진이 없습니다.",
-                   preferredStyle: .alert
-               )
-               alert.addAction(UIAlertAction(title: "확인", style: .default))
-               viewController.present(alert, animated: true)
-               return
-           }
-           
-           // 이미지 선택 화면 생성
-           let featureImageVC = FeatureImageSelectViewController(
-               year: year,
-               month: month,
-               imageRecords: Array(allImageRecords)
-           )
-           
-           // 이미지 선택 완료 시 콜백
-           featureImageVC.onImageSelected = { [weak self] image in
-               guard let self = self else { return }
-               
-               // 해당 월의 셀 찾기
-               if let cell = self.getCellForIndex(month - 1) as? CardCell {
-                   // 선택된 이미지 설정
-                   cell.setFeatureImage(image)
-               }
-           }
-           
-           // 모달로 표시
-           featureImageVC.modalPresentationStyle = .pageSheet
-           viewController.present(featureImageVC, animated: true)
-       }
-       
-       // 뷰컨트롤러 찾기
-       private func findViewController() -> UIViewController? {
-           var responder: UIResponder? = self
-           while responder != nil {
-               if let viewController = responder as? UIViewController {
-                   return viewController
-               }
-               responder = responder?.next
-           }
-           return nil
-       }
-
+        // 현재 보여지는 뷰 컨트롤러 찾기
+        guard let viewController = findViewController() else { return }
+        
+        // 해당 월의 이미지들 가져오기
+        let dayCards = dayCardRepository.getDayCards(year: year, month: month)
+        
+        var allImageRecords: [ImageRecord] = []
+        for dayCard in dayCards {
+            // 정상 이미지만 필터링 (썸네일 경로가 있는 것만)
+            let validRecords = dayCard.imageRecords.filter { $0.thumbnailImagePath != nil }
+            allImageRecords.append(contentsOf: validRecords)
+        }
+        
+        if allImageRecords.isEmpty {
+            // 이미지가 없는 경우 알림
+            let alert = UIAlertController(
+                title: "이미지 없음",
+                message: "\(month)월에 저장된 사진이 없습니다.",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "확인", style: .default))
+            viewController.present(alert, animated: true)
+            return
+        }
+        
+        // 이미지 선택 화면 생성
+        let featureImageVC = FeatureImageSelectViewController(
+            year: year,
+            month: month,
+            imageRecords: Array(allImageRecords)
+        )
+        
+        // 이미지 선택 완료 시 콜백
+        featureImageVC.onImageSelected = { [weak self] image in
+            guard let self = self else { return }
+            
+            // 해당 월의 셀 찾기
+            if let cell = self.getCellForIndex(month - 1) as? CardCell {
+                // 선택된 이미지 설정
+                cell.setFeatureImage(image)
+            }
+        }
+        
+        // 모달로 표시
+        featureImageVC.modalPresentationStyle = .pageSheet
+        viewController.present(featureImageVC, animated: true)
+    }
+    
+    // 뷰컨트롤러 찾기
+    private func findViewController() -> UIViewController? {
+        var responder: UIResponder? = self
+        while responder != nil {
+            if let viewController = responder as? UIViewController {
+                return viewController
+            }
+            responder = responder?.next
+        }
+        return nil
+    }
+    
     
     func updateMonth(month: Int) {
         // 월 레이블 업데이트
@@ -546,7 +568,7 @@ final class CardCalendarView: BaseView {
         // 월을 기준으로 고유 태그 설정 (나중에 찾을 수 있도록)
         cell.tag = month
     }
-
+    
 }
 
 
@@ -558,45 +580,57 @@ extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-            guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CardCell", for: indexPath) as? CardCell else {
-                return UICollectionViewCell()
-            }
-            
-            let month = indexPath.item + 1
-            // 현재 모드에 맞게 데이터 필터링
-            let allData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
-            let monthData = isShowingSymptoms ?
-                allData.filter { !$0.value.symptoms.isEmpty } : // 증상 모드: 증상 있는 것만
-                allData.filter { $0.value.symptoms.isEmpty }    // 사진 모드: 증상 없는 것만
-            
-            // 수정된 configure 메서드 호출
-            cell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
-            
-            // 증상 모드 상태 전달
-            cell.isShowingSymptoms = isShowingSymptoms
-            cell.updateSymptomView(isShowing: isShowingSymptoms)
-            cellPrepared(cell: cell, forMonth: month)
-            
-            // 대표 이미지 선택 액션 설정 (기존 메서드에 추가)
-            cell.selectFeatureImageAction = { [weak self] (year, month) in
-                self?.handleFeatureImageSelection(for: year, month: month)
-            }
-            
-            cell.dateTapped
-                .subscribe(onNext: { [weak self] date in
-                    self?.dateSelected.onNext(date)
-                })
-                .disposed(by: cell.disposeBag)
-            
-            if isCalendarMode {
-                cell.flipToCalendar(animated: false)
-                cell.createCalendarGrid(with: monthData)
-            } else {
-                cell.flipToCard(animated: false)
-            }
-            
-            return cell
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CardCell", for: indexPath) as? CardCell else {
+            return UICollectionViewCell()
         }
+        
+        let month = indexPath.item + 1
+        // 현재 모드에 맞게 데이터 필터링
+        let allData = dayCardRepository.getDayCardsMapForMonth(year: currentYear, month: month)
+        let monthData = isShowingSymptoms ?
+        allData.filter { !$0.value.symptoms.isEmpty } : // 증상 모드: 증상 있는 것만
+        allData.filter { $0.value.symptoms.isEmpty }    // 사진 모드: 증상 없는 것만
+        
+        // 월/년도 정보만 먼저 설정
+        cell.configure(forMonth: month, year: currentYear, dayCardData: monthData)
+        
+        // 증상 모드 상태 전달
+        cell.isShowingSymptoms = isShowingSymptoms
+        cell.updateSymptomView(isShowing: isShowingSymptoms)
+        cellPrepared(cell: cell, forMonth: month)
+        
+        // 대표 이미지 선택 액션 설정
+        cell.selectFeatureImageAction = { [weak self] (year, month) in
+            self?.handleFeatureImageSelection(for: year, month: month)
+        }
+        
+        cell.dateTapped
+            .subscribe(onNext: { [weak self] date in
+                self?.dateSelected.onNext(date)
+            })
+            .disposed(by: cell.disposeBag)
+        
+        // 중요: UserDefaults에서 해당 월의 저장된 디스플레이 모드 로드
+        let displayModeKey = "display_mode_\(currentYear)_\(month)"
+        let useFeatureImage = UserDefaults.standard.bool(forKey: displayModeKey)
+        
+        // 모드 상태에 따라 플립 애니메이션 적용
+        if isCalendarMode {
+            cell.flipToCalendar(animated: false)
+            cell.createCalendarGrid(with: monthData)
+        } else {
+            cell.flipToCard(animated: false)
+            
+            // 카드 모드일 때 저장된 디스플레이 모드 적용
+            if useFeatureImage {
+                cell.setDisplayMode(.featureImage)
+            } else {
+                cell.setDisplayMode(.colorCard)
+            }
+        }
+        
+        return cell
+    }
     
     
     
@@ -625,7 +659,7 @@ extension CardCalendarView: UICollectionViewDataSource, UICollectionViewDelegate
         updateMonth(month: month)
         
         // 디버깅 로그
-//        print("CardCalendarView - 스크롤 완료: 페이지 \(currentIndex + 1)")
+        //        print("CardCalendarView - 스크롤 완료: 페이지 \(currentIndex + 1)")
     }
     
     // 스크롤 애니메이션이 끝난 후 호출되는 메서드

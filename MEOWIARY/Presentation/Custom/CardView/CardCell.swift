@@ -8,7 +8,7 @@ import RxSwift
 import SnapKit
 import Kingfisher
 
-final class CardCell: UICollectionViewCell {
+final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
     
     // MARK: - Properties
     private var monthImages: [String] = [
@@ -22,6 +22,9 @@ final class CardCell: UICollectionViewCell {
         case featureImage // 이미지 모드
     }
     
+    private var popupBackgroundView: UIView?
+    private var colorPaletteBackgroundView: UIView?
+    
     private var year: Int = Calendar.current.component(.year, from: Date())
     private var month: Int = 1
     var isFlipped = false
@@ -33,6 +36,7 @@ final class CardCell: UICollectionViewCell {
     private var displayMode: CardDisplayMode = .colorCard
     var selectFeatureImageAction: ((Int, Int) -> Void)?
     private var hasCustomFeatureImage: Bool = false
+    
     
     // MARK: - UI Components
     private let containerView: UIView = {
@@ -281,15 +285,15 @@ final class CardCell: UICollectionViewCell {
     }
     
     private func findViewController() -> UIViewController? {
-            var responder: UIResponder? = self
-            while responder != nil {
-                if let viewController = responder as? UIViewController {
-                    return viewController
-                }
-                responder = responder?.next
+        var responder: UIResponder? = self
+        while responder != nil {
+            if let viewController = responder as? UIViewController {
+                return viewController
             }
-            return nil
+            responder = responder?.next
         }
+        return nil
+    }
     
     // MARK: - Configuration
     func configure(forMonth month: Int, year: Int = Calendar.current.component(.year, from: Date()), dayCardData: [Int: DayCard] = [:]) {
@@ -301,7 +305,7 @@ final class CardCell: UICollectionViewCell {
         // 확실히 레이아웃 갱신
         self.layoutIfNeeded()
         loadDisplayMode()
-               updateCardAppearance()
+        updateCardAppearance()
         // 월 이름 설정 (1-based index)
         let monthNames = ["1월", "2월", "3월", "4월", "5월", "6월",
                           "7월", "8월", "9월", "10월", "11월", "12월"]
@@ -333,7 +337,7 @@ final class CardCell: UICollectionViewCell {
         // 현재 모드에 맞는 메시지 설정
         updateSymptomView(isShowing: isShowingSymptoms)
     }
-
+    
     // 별도로 모드 관련 파라미터를 포함한 configure 메서드 추가 (필요시 사용)
     func configure(with dayCardData: [Int: DayCard] = [:], isSymptomMode: Bool = false, month: Int, year: Int = Calendar.current.component(.year, from: Date())) {
         // 증상 모드 상태 설정
@@ -343,30 +347,6 @@ final class CardCell: UICollectionViewCell {
         configure(forMonth: month, year: year, dayCardData: dayCardData)
     }
     
-    // 월별로 다른 색상 적용
-    private func setMonthColor(month: Int) {
-        // 월별 고정 색상 설정 // 추후 이미지 없을때 사용자가 배경 고를 수 있도록
-        let colors = [
-            UIColor(hex: "D9D9D9"), // 1월 - 주황
-            UIColor(hex: "D9D9D9"), // 2월 - 빨강
-            UIColor(hex: "D9D9D9"), // 3월 - 보라
-            UIColor(hex: "D9D9D9"), // 4월 - 파랑
-            UIColor(hex: "D9D9D9"), // 5월 - 민트
-            UIColor(hex: "D9D9D9"), // 6월 - 초록
-            UIColor(hex: "D9D9D9"), // 7월 - 노랑
-            UIColor(hex: "D9D9D9"), // 8월 - 주황
-            UIColor(hex: "D9D9D9"), // 9월 - 빨강
-            UIColor(hex: "D9D9D9"), // 10월 - 보라
-            UIColor(hex: "D9D9D9"), // 11월 - 파랑
-            UIColor(hex: "D9D9D9")  // 12월 - 초록
-        ]
-        
-        if month >= 1 && month <= 12 {
-            containerView.backgroundColor = colors[month - 1]
-        } else {
-            containerView.backgroundColor = DesignSystem.Color.Background.card.inUIColor()
-        }
-    }
     
     @objc private func dayButtonTapped(_ sender: UIButton) {
         let day = sender.tag
@@ -403,173 +383,327 @@ final class CardCell: UICollectionViewCell {
         }
     }
     
+    // CardCell.swift 파일의 기존 코드에 다음 내용을 추가/수정합니다
+    
+    // 1. optionsButtonTapped 메서드 수정
     @objc private func optionsButtonTapped() {
-           // 옵션 버튼 탭 처리는 CardCalendarView에서 구현
-           guard let viewController = findViewController() else { return }
-           
-           let alertController = UIAlertController(
-               title: "\(month)월 카드 설정",
-               message: "카드 표시 방식을 선택하세요",
-               preferredStyle: .actionSheet
-           )
-           
-           // 색상 카드 모드 액션
-           let colorCardAction = UIAlertAction(title: "색상 카드", style: .default) { [weak self] _ in
-               self?.setDisplayMode(.colorCard)
-           }
-           
-           // 대표 이미지 모드 액션
-           let featureImageAction = UIAlertAction(title: "대표 이미지", style: .default) { [weak self] _ in
-               self?.setDisplayMode(.featureImage)
-           }
-           
-           // 대표 이미지 설정 액션
-           let selectImageAction = UIAlertAction(title: "대표 이미지 직접 선택", style: .default) { [weak self] _ in
-               guard let self = self else { return }
-               self.selectFeatureImageAction?(self.year, self.month)
-           }
-           
-           // 취소 액션
-           let cancelAction = UIAlertAction(title: "취소", style: .cancel)
-           
-           // 현재 모드에 체크 표시
-           if displayMode == .colorCard {
-               colorCardAction.setValue(true, forKey: "checked")
-           } else {
-               featureImageAction.setValue(true, forKey: "checked")
-           }
-           
-           alertController.addAction(colorCardAction)
-           alertController.addAction(featureImageAction)
-           alertController.addAction(selectImageAction)
-           alertController.addAction(cancelAction)
-           
-           // iPad 지원
-           if let popoverController = alertController.popoverPresentationController {
-               popoverController.sourceView = optionsButton
-               popoverController.sourceRect = optionsButton.bounds
-           }
-           
-           viewController.present(alertController, animated: true)
-       }
+        guard let viewController = findViewController() else { return }
+        
+        // 옵션 팝업창 생성
+        let alertController = UIAlertController(
+            title: "\(month)월 카드 설정",
+            message: "카드 표시 방식을 선택하세요",
+            preferredStyle: .actionSheet
+        )
+        
+        // 색상 카드 모드 액션
+        let colorCardAction = UIAlertAction(title: "색상 카드", style: .default) { [weak self] _ in
+            self?.setDisplayMode(.colorCard)
+        }
+        
+        // 대표 이미지 모드 액션
+        let featureImageAction = UIAlertAction(title: "대표 이미지", style: .default) { [weak self] _ in
+            self?.setDisplayMode(.featureImage)
+        }
+        
+        // 대표 이미지 설정 액션
+        let selectImageAction = UIAlertAction(title: "대표 이미지 직접 선택", style: .default) { [weak self] _ in
+            guard let self = self else { return }
+            if let action = self.selectFeatureImageAction {
+                action(self.year, self.month)
+            }
+        }
+        
+        // 색상 설정 액션 추가
+        let colorSettingAction = UIAlertAction(title: "색상 설정", style: .default) { [weak self] _ in
+            self?.showColorPaletteView()
+        }
+        
+        // 취소 액션
+        let cancelAction = UIAlertAction(title: "취소", style: .cancel)
+        
+        // 현재 모드에 체크 표시
+        if displayMode == .colorCard {
+            colorCardAction.setValue(true, forKey: "checked")
+        } else {
+            featureImageAction.setValue(true, forKey: "checked")
+        }
+        
+        alertController.addAction(colorCardAction)
+        alertController.addAction(featureImageAction)
+        alertController.addAction(selectImageAction)
+        alertController.addAction(colorSettingAction)  // 색상 설정 액션 추가
+        alertController.addAction(cancelAction)
+        
+        // iPad 지원
+        if let popoverController = alertController.popoverPresentationController {
+            popoverController.sourceView = optionsButton
+            popoverController.sourceRect = optionsButton.bounds
+        }
+        
+        viewController.present(alertController, animated: true)
+    }
+    
+    // 3. ColorPaletteView 표시 메서드 추가
+    private func showColorPaletteView() {
+        guard let viewController = findViewController() else { return }
+        
+        // 팝업 배경
+        let popupBackground = UIView(frame: viewController.view.bounds)
+        popupBackground.backgroundColor = UIColor.black.withAlphaComponent(0.4)
+        
+        // ColorPaletteView 생성
+        let colorPaletteView = ColorPaletteView(frame: CGRect(x: 0, y: 0, width: 300, height: 400))
+        colorPaletteView.delegate = self
+        colorPaletteView.layer.cornerRadius = 16
+        colorPaletteView.clipsToBounds = true
+        
+        // 화면에 추가
+        viewController.view.addSubview(popupBackground)
+        popupBackground.addSubview(colorPaletteView)
+        
+        // 제약 조건 설정
+        colorPaletteView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            colorPaletteView.centerXAnchor.constraint(equalTo: popupBackground.centerXAnchor),
+            colorPaletteView.centerYAnchor.constraint(equalTo: popupBackground.centerYAnchor),
+            colorPaletteView.widthAnchor.constraint(equalTo: popupBackground.widthAnchor, multiplier: 0.9),
+            colorPaletteView.heightAnchor.constraint(equalToConstant: 480)
+        ])
+        
+        // 애니메이션
+        popupBackground.alpha = 0
+        colorPaletteView.transform = CGAffineTransform(scaleX: 1.2, y: 1.2)
+        
+        UIView.animate(withDuration: 0.25) {
+            popupBackground.alpha = 1
+            colorPaletteView.transform = .identity
+        }
+        
+        // 참조 저장
+        self.colorPaletteBackgroundView = popupBackground
+        
+        // 배경 탭 닫기 제스처 추가
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(closeColorPalette))
+        tapGesture.delegate = self
+        popupBackground.addGestureRecognizer(tapGesture)
+    }
+    
+    // 4. 색상 팔레트 닫기 메서드 추가
+    @objc private func closeColorPalette(_ gesture: UITapGestureRecognizer) {
+        // 팔레트 뷰를 직접 탭한 경우는 닫지 않음
+        if let colorPaletteView = colorPaletteBackgroundView?.subviews.first as? ColorPaletteView,
+           colorPaletteView.frame.contains(gesture.location(in: colorPaletteBackgroundView)) {
+            return
+        }
+        
+        // 팔레트 애니메이션으로 닫기
+        UIView.animate(withDuration: 0.2, animations: {
+            self.colorPaletteBackgroundView?.alpha = 0
+        }) { _ in
+            self.colorPaletteBackgroundView?.removeFromSuperview()
+            self.colorPaletteBackgroundView = nil
+        }
+    }
+    
+    // 5. 월별 색상 로드 기능 수정 - setMonthColor 메서드 업데이트
+    private func setMonthColor(month: Int) {
+        // UserDefaults에서 저장된 색상 로드 시도
+        let colorKey = "card_color_\(year)_\(month)"
+        
+        if let savedColorHex = UserDefaults.standard.string(forKey: colorKey) {
+            // 저장된 색상이 있으면 사용
+            containerView.backgroundColor = UIColor(hex: savedColorHex)
+        } else {
+            // 없으면 기본 색상 사용
+            let defaultColors = [
+                UIColor(hex: "FF9E80"), // 1월 - 연한 주황
+                UIColor(hex: "FF8A80"), // 2월 - 연한 빨강
+                UIColor(hex: "EA80FC"), // 3월 - 연한 보라
+                UIColor(hex: "8C9EFF"), // 4월 - 연한 파랑
+                UIColor(hex: "80D8FF"), // 5월 - 연한 하늘
+                UIColor(hex: "A7FFEB"), // 6월 - 연한 민트
+                UIColor(hex: "B9F6CA"), // 7월 - 연한 초록
+                UIColor(hex: "FFFF8D"), // 8월 - 연한 노랑
+                UIColor(hex: "FFD180"), // 9월 - 연한 주황
+                UIColor(hex: "FF8A80"), // 10월 - 연한 빨강
+                UIColor(hex: "B388FF"), // 11월 - 연한 보라
+                UIColor(hex: "82B1FF")  // 12월 - 연한 파랑
+            ]
+            
+            if month >= 1 && month <= 12 {
+                containerView.backgroundColor = defaultColors[month - 1]
+            } else {
+                containerView.backgroundColor = DesignSystem.Color.Background.card.inUIColor()
+            }
+        }
+    }
+    
+    // 새로운 액션 메서드들 추가
+    @objc private func colorCardButtonTapped() {
+        setDisplayMode(.colorCard)
+        closePopup()
+    }
+    
+    @objc private func featureImageButtonTapped() {
+        setDisplayMode(.featureImage)
+        closePopup()
+    }
+    
+    @objc private func selectImageButtonTapped() {
+        closePopup()
+        if let action = selectFeatureImageAction {
+            action(year, month)
+        }
+    }
+    
+    @objc private func colorSettingButtonTapped() {
+        closePopup()
+        showColorPaletteView()
+    }
+    
+    @objc private func closePopup() {
+        guard let popupBackground = popupBackgroundView else { return }
+        
+        UIView.animate(withDuration: 0.2, animations: {
+            popupBackground.alpha = 0
+        }) { _ in
+            popupBackground.removeFromSuperview()
+            self.popupBackgroundView = nil
+        }
+    }
+    
+    @objc private func backgroundTapped(_ gesture: UITapGestureRecognizer) {
+        let location = gesture.location(in: popupBackgroundView)
+        
+        // 컨테이너 뷰 영역이 아닌 경우에만 닫기 (컨테이너 뷰 영역을 탭하면 무시)
+        if let containerView = popupBackgroundView?.subviews.first,
+           !containerView.frame.contains(location) {
+            closePopup()
+        }
+    }
     
     func setDisplayMode(_ mode: CardDisplayMode) {
-            displayMode = mode
-            saveDisplayMode()
-            updateCardAppearance()
+        displayMode = mode
+        saveDisplayMode()
+        updateCardAppearance()
+    }
+    
+    // 대표 이미지 설정
+    func setFeatureImage(_ image: UIImage?) {
+        if let image = image {
+            backgroundImageView.image = image
+            backgroundImageView.alpha = 1.0 // 완전 불투명으로 설정
+            hasCustomFeatureImage = true
+            saveCustomFeatureImage(image)
+            setDisplayMode(.featureImage)
         }
-        
-        // 대표 이미지 설정
-        func setFeatureImage(_ image: UIImage?) {
-            if let image = image {
-                backgroundImageView.image = image
-                backgroundImageView.alpha = 1.0 // 완전 불투명으로 설정
-                hasCustomFeatureImage = true
-                saveCustomFeatureImage(image)
-                setDisplayMode(.featureImage)
-            }
-        }
-
+    }
+    
     
     private func updateCardAppearance() {
-            switch displayMode {
-            case .colorCard:
-                // 기본 색상 모드
-                backgroundImageView.image = nil
-                backgroundImageView.alpha = 0.3
-                setMonthColor(month: month) // 기존 월별 색상 설정 메서드 호출
-                
-            case .featureImage:
-                // 대표 이미지 모드
-                if hasCustomFeatureImage {
-                    // 사용자가 설정한 대표 이미지 로드
-                    loadCustomFeatureImage()
-                    backgroundImageView.alpha = 1.0
-                } else {
-                    // 랜덤 이미지 또는 기본 이미지 로드
-                    loadRandomMonthImage()
-                    backgroundImageView.alpha = 0.7
-                }
+        switch displayMode {
+        case .colorCard:
+            // 기본 색상 모드
+            backgroundImageView.image = nil
+            backgroundImageView.alpha = 0.3
+            setMonthColor(month: month) // 기존 월별 색상 설정 메서드 호출
+            
+        case .featureImage:
+            // 대표 이미지 모드
+            if hasCustomFeatureImage {
+                // 사용자가 설정한 대표 이미지 로드
+                loadCustomFeatureImage()
+                backgroundImageView.alpha = 1.0
+            } else {
+                // 랜덤 이미지 또는 기본 이미지 로드
+                loadRandomMonthImage()
+                backgroundImageView.alpha = 0.7
             }
         }
+    }
     
     private func loadRandomMonthImage() {
-            // 해당 월의 이미지들 중 랜덤 선택
-            let dayCardRepository = DayCardRepository()
-            let dayCards = dayCardRepository.getDayCards(year: year, month: month)
-            
-            var allImageRecords: [ImageRecord] = []
-            for dayCard in dayCards {
-                allImageRecords.append(contentsOf: dayCard.imageRecords)
-            }
-            
-            if let randomImage = allImageRecords.randomElement(),
-               let imagePath = randomImage.originalImagePath,
-               let image = ImageManager.shared.loadOriginalImage(from: imagePath) {
-                backgroundImageView.image = image
-            } else {
-                // 이미지가 없는 경우 기본 색상 사용
-                setMonthColor(month: month)
-            }
+        // 해당 월의 이미지들 중 랜덤 선택
+        let dayCardRepository = DayCardRepository()
+        let dayCards = dayCardRepository.getDayCards(year: year, month: month)
+        
+        var allImageRecords: [ImageRecord] = []
+        for dayCard in dayCards {
+            allImageRecords.append(contentsOf: dayCard.imageRecords)
         }
         
-        // 사용자 정의 대표 이미지 저장 키
-        private func featureImageKey() -> String {
-            return "feature_image_\(year)_\(month)"
+        if let randomImage = allImageRecords.randomElement(),
+           let imagePath = randomImage.originalImagePath,
+           let image = ImageManager.shared.loadOriginalImage(from: imagePath) {
+            backgroundImageView.image = image
+        } else {
+            // 이미지가 없는 경우 기본 색상 사용
+            setMonthColor(month: month)
+        }
+    }
+    
+    // 사용자 정의 대표 이미지 저장 키
+    private func featureImageKey() -> String {
+        return "feature_image_\(year)_\(month)"
+    }
+    
+    // 사용자 정의 대표 이미지 저장
+    private func saveCustomFeatureImage(_ image: UIImage) {
+        // 이미지를 디스크에 저장
+        guard let data = image.jpegData(compressionQuality: 0.7) else { return }
+        
+        let fileManager = FileManager.default
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let filePath = documentsPath.appendingPathComponent(featureImageKey())
+        
+        do {
+            try data.write(to: filePath)
+            UserDefaults.standard.set(true, forKey: "has_" + featureImageKey())
+        } catch {
+            print("이미지 저장 실패: \(error)")
+        }
+    }
+    
+    // 사용자 정의 대표 이미지 로드
+    private func loadCustomFeatureImage() {
+        let fileManager = FileManager.default
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let filePath = documentsPath.appendingPathComponent(featureImageKey())
+        
+        if fileManager.fileExists(atPath: filePath.path),
+           let data = try? Data(contentsOf: filePath),
+           let image = UIImage(data: data) {
+            backgroundImageView.image = image
+        } else {
+            // 이미지 로드 실패 시 랜덤 이미지 표시
+            loadRandomMonthImage()
+        }
+    }
+    
+    // 디스플레이 모드 저장
+    private func saveDisplayMode() {
+        let key = "display_mode_\(year)_\(month)"
+        UserDefaults.standard.set(displayMode == .featureImage, forKey: key)
+        UserDefaults.standard.synchronize()
+    }
+    
+    // 디스플레이 모드 로드
+    private func loadDisplayMode() {
+        let key = "display_mode_\(year)_\(month)"
+        let customKey = "has_" + featureImageKey()
+        
+        hasCustomFeatureImage = UserDefaults.standard.bool(forKey: customKey)
+        
+        if UserDefaults.standard.bool(forKey: key) {
+            displayMode = .featureImage
+        } else {
+            displayMode = .colorCard
         }
         
-        // 사용자 정의 대표 이미지 저장
-        private func saveCustomFeatureImage(_ image: UIImage) {
-            // 이미지를 디스크에 저장
-            guard let data = image.jpegData(compressionQuality: 0.7) else { return }
-            
-            let fileManager = FileManager.default
-            let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let filePath = documentsPath.appendingPathComponent(featureImageKey())
-            
-            do {
-                try data.write(to: filePath)
-                UserDefaults.standard.set(true, forKey: "has_" + featureImageKey())
-            } catch {
-                print("이미지 저장 실패: \(error)")
-            }
-        }
-        
-        // 사용자 정의 대표 이미지 로드
-        private func loadCustomFeatureImage() {
-            let fileManager = FileManager.default
-            let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let filePath = documentsPath.appendingPathComponent(featureImageKey())
-            
-            if fileManager.fileExists(atPath: filePath.path),
-               let data = try? Data(contentsOf: filePath),
-               let image = UIImage(data: data) {
-                backgroundImageView.image = image
-            } else {
-                // 이미지 로드 실패 시 랜덤 이미지 표시
-                loadRandomMonthImage()
-            }
-        }
-        
-        // 디스플레이 모드 저장
-        private func saveDisplayMode() {
-            let key = "display_mode_\(year)_\(month)"
-            UserDefaults.standard.set(displayMode == .featureImage, forKey: key)
-        }
-        
-        // 디스플레이 모드 로드
-        private func loadDisplayMode() {
-            let key = "display_mode_\(year)_\(month)"
-            let customKey = "has_" + featureImageKey()
-            
-            hasCustomFeatureImage = UserDefaults.standard.bool(forKey: customKey)
-            
-            if UserDefaults.standard.bool(forKey: key) {
-                displayMode = .featureImage
-            } else {
-                displayMode = .colorCard
-            }
-        }
+        print("CardCell: \(month)월 카드 디스플레이 모드 로드: \(displayMode == .featureImage ? "이미지" : "색상")")
+    }
+    
     func createCalendarGrid(with dayCardData: [Int: DayCard] = [:]) {
         
         let calendar = Calendar.current
@@ -686,7 +820,7 @@ final class CardCell: UICollectionViewCell {
         // 텍스트 보이게 설정
         button.titleLabel?.isHidden = false
     }
-
+    
     
     private func addSymptomIndicator(to button: UIButton, severity: Int) {
         let isSmallScreen = UIScreen.main.bounds.height <= 667
@@ -732,7 +866,7 @@ final class CardCell: UICollectionViewCell {
         button.titleLabel?.isHidden = true
         button.setTitleColor(.clear, for: .normal)
     }
-
+    
     // 이미지 표시 메서드 수정
     private func addImageIndicator(to button: UIButton, imagePath: String?) {
         guard let imagePath = imagePath else {
@@ -816,28 +950,30 @@ final class CardCell: UICollectionViewCell {
         )
     }
     
-//    private func addSymptomIndicator(to button: UIButton) {
-//        let isSmallScreen = UIScreen.main.bounds.height <= 667
-//        let indicatorSize: CGFloat = isSmallScreen ? 16 : 20
-//        
-//        let indicator = UIView()
-//        indicator.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
-//        indicator.layer.cornerRadius = indicatorSize / 2
-//        
-//        button.addSubview(indicator)
-//        indicator.center = CGPoint(x: button.frame.width / 2, y: button.frame.height / 2)
-//        indicator.frame.size = CGSize(width: indicatorSize, height: indicatorSize)
-//        
-//        // Bring the text to front
-//        button.bringSubviewToFront(button.titleLabel!)
-//    }
-//    
+    //    private func addSymptomIndicator(to button: UIButton) {
+    //        let isSmallScreen = UIScreen.main.bounds.height <= 667
+    //        let indicatorSize: CGFloat = isSmallScreen ? 16 : 20
+    //
+    //        let indicator = UIView()
+    //        indicator.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
+    //        indicator.layer.cornerRadius = indicatorSize / 2
+    //
+    //        button.addSubview(indicator)
+    //        indicator.center = CGPoint(x: button.frame.width / 2, y: button.frame.height / 2)
+    //        indicator.frame.size = CGSize(width: indicatorSize, height: indicatorSize)
+    //
+    //        // Bring the text to front
+    //        button.bringSubviewToFront(button.titleLabel!)
+    //    }
+    //
     // MARK: - Flipping Methods
     func flipToCalendar(animated: Bool = true) {
         // 이미 뒤집힌 상태면 종료
         if isFlipped {
             return
         }
+        
+        saveDisplayMode()
         
         if animated {
             // 애니메이션 옵션 수정 - 일정한 속도로 뒤집기
@@ -886,6 +1022,8 @@ final class CardCell: UICollectionViewCell {
                 completion: { _ in
                     self.isFlipped = false
                     print("CardCell: \(self.month)월 카드 되돌리기 애니메이션 완료")
+                    self.loadDisplayMode()
+                    self.updateCardAppearance()
                 }
             )
         } else {
@@ -893,6 +1031,9 @@ final class CardCell: UICollectionViewCell {
             calendarContainerView.isHidden = true
             containerView.isHidden = false
             isFlipped = false
+            
+            loadDisplayMode()
+            updateCardAppearance()
         }
         
         // 디버그 로그
@@ -966,5 +1107,41 @@ final class CardCell: UICollectionViewCell {
         // Clear symptom data
         symptomsData.removeAll()
         createCalendarGrid()
+    }
+}
+
+
+extension CardCell: ColorPaletteViewDelegate {
+    func didSelectColor(_ color: UIColor, hexCode: String) {
+        // 선택한 색상으로 카드 배경색 변경
+        containerView.backgroundColor = color
+        
+        // UserDefaults에 선택한 색상 저장
+        UserDefaults.standard.set(hexCode, forKey: "card_color_\(year)_\(month)")
+        
+        // 컬러 팔레트 팝업 닫기
+        if let background = colorPaletteBackgroundView {
+            UIView.animate(withDuration: 0.2, animations: {
+                background.alpha = 0
+            }) { _ in
+                background.removeFromSuperview()
+                self.colorPaletteBackgroundView = nil
+            }
+        }
+        
+        // 색상 카드 모드로 설정
+        setDisplayMode(.colorCard)
+    }
+    
+    func didCancelSelection() {
+        // 컬러 팔레트 팝업 닫기
+        if let background = colorPaletteBackgroundView {
+            UIView.animate(withDuration: 0.2, animations: {
+                background.alpha = 0
+            }) { _ in
+                background.removeFromSuperview()
+                self.colorPaletteBackgroundView = nil
+            }
+        }
     }
 }
