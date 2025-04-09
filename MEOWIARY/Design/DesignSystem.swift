@@ -78,7 +78,7 @@ enum DesignSystem {
     enum Control: String {
       case prevYear = "chevron.left"
       case nextYear = "chevron.right"
-      case options = "ellipsis"
+      case options = "person.2.crop.square.stack.fill"
       
       func toUIImage() -> UIImage {
         return UIImage(systemName: self.rawValue)!
