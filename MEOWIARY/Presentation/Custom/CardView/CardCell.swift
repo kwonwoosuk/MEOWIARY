@@ -36,6 +36,7 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
     private var displayMode: CardDisplayMode = .colorCard
     var selectFeatureImageAction: ((Int, Int) -> Void)?
     private var hasCustomFeatureImage: Bool = false
+    private static var imageCache: [String: UIImage] = [:]
     
     
     // MARK: - UI Components
@@ -301,7 +302,7 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
         self.tag = month
         self.month = month
         self.year = year
-        
+        preloadImages()
         // 확실히 레이아웃 갱신
         self.layoutIfNeeded()
         loadDisplayMode()
@@ -579,26 +580,39 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
                 loadRandomMonthImage()
                 backgroundImageView.alpha = 1.0
             }
+            // 확실하게 이미지가 표시되도록 색상 초기화
+            containerView.backgroundColor = UIColor.clear
         }
     }
     
     private func loadRandomMonthImage() {
-        // 해당 월의 이미지들 중 랜덤 선택
-        let dayCardRepository = DayCardRepository()
-        let dayCards = dayCardRepository.getDayCards(year: year, month: month)
+        // 플레이스홀더 이미지나 색상을 즉시 설정하여 첫 화면에서 딜레이 없애기
+        containerView.backgroundColor = DesignSystem.Color.Background.card.inUIColor()
         
-        var allImageRecords: [ImageRecord] = []
-        for dayCard in dayCards {
-            allImageRecords.append(contentsOf: dayCard.imageRecords)
-        }
-        
-        if let randomImage = allImageRecords.randomElement(),
-           let imagePath = randomImage.originalImagePath,
-           let image = ImageManager.shared.loadOriginalImage(from: imagePath) {
-            backgroundImageView.image = image
-        } else {
-            // 이미지가 없는 경우 기본 색상 사용
-            setMonthColor(month: month)
+        // 백그라운드 스레드에서 이미지 로딩
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            let dayCardRepository = DayCardRepository()
+            let dayCards = dayCardRepository.getDayCards(year: self.year, month: self.month)
+            
+            var allImageRecords: [ImageRecord] = []
+            for dayCard in dayCards {
+                allImageRecords.append(contentsOf: dayCard.imageRecords)
+            }
+            
+            // 이미지 레코드가 있고 랜덤 선택이 가능하면 이미지 로드
+            if let randomImage = allImageRecords.randomElement(),
+               let imagePath = randomImage.originalImagePath,
+               let image = ImageManager.shared.loadOriginalImage(from: imagePath) {
+                
+                // UI 업데이트는 메인 스레드에서
+                DispatchQueue.main.async {
+                    self.backgroundImageView.image = image
+                    self.backgroundImageView.alpha = 0.7
+                    self.containerView.backgroundColor = UIColor.clear
+                }
+            }
         }
     }
     
@@ -634,6 +648,8 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
            let data = try? Data(contentsOf: filePath),
            let image = UIImage(data: data) {
             backgroundImageView.image = image
+            backgroundImageView.alpha = 1.0 // 완전 불투명으로 설정
+            containerView.backgroundColor = UIColor.clear // 배경색 제거하여 이미지만 표시
         } else {
             // 이미지 로드 실패 시 랜덤 이미지 표시
             loadRandomMonthImage()
@@ -741,6 +757,55 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
                 }
             }
         }
+    }
+    
+    private func preloadImages() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
+            
+            // 커스텀 이미지 미리 로드
+            if self.hasCustomFeatureImage {
+                let fileManager = FileManager.default
+                let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                let filePath = documentsPath.appendingPathComponent(self.featureImageKey())
+                
+                if fileManager.fileExists(atPath: filePath.path),
+                   let data = try? Data(contentsOf: filePath),
+                   let image = UIImage(data: data) {
+                    let cacheKey = "\(self.year)_\(self.month)_custom"
+                    CardCell.imageCache[cacheKey] = image
+                }
+            }
+            
+            // 랜덤 이미지 후보들 미리 로드
+            let dayCardRepository = DayCardRepository()
+            let dayCards = dayCardRepository.getDayCards(year: self.year, month: self.month)
+            
+            // 이미지 레코드 중 앞에서 최대 5개만 미리 로드 (성능 고려)
+            let imageRecords = dayCards.flatMap { $0.imageRecords }.prefix(5)
+            
+            for record in imageRecords {
+                if let path = record.originalImagePath {
+                    _ = self.getImageWithCaching(path: path)
+                }
+            }
+        }
+    }
+    
+    private func getImageWithCaching(path: String) -> UIImage? {
+        // 캐시에 있으면 캐시에서 반환
+        let cacheKey = "\(year)_\(month)_\(path)"
+        if let cachedImage = CardCell.imageCache[cacheKey] {
+            return cachedImage
+        }
+        
+        // 캐시에 없으면 로드하고 캐싱
+        if let image = ImageManager.shared.loadOriginalImage(from: path) {
+            CardCell.imageCache[cacheKey] = image
+            return image
+        }
+        
+        return nil
     }
     
     private func resetButtonDisplay(_ button: UIButton) {
@@ -969,11 +1034,31 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
             return
         }
         
+        // 애니메이션 전 모드만 로드하고 가벼운 UI 준비
+        loadDisplayMode()
+        
+        // 애니메이션 속도에 영향을 주지 않도록 간단한 준비만 수행
+        if displayMode == .featureImage {
+            // 커스텀 이미지가 있는지만 확인하고 실제 로딩은 나중에
+            if hasCustomFeatureImage {
+                backgroundImageView.alpha = 1.0
+            } else {
+                backgroundImageView.alpha = 0.7
+            }
+            // 일단 색상만 설정 (이미지는 나중에)
+            containerView.backgroundColor = UIColor.lightGray
+        } else {
+            // 색상 모드는 간단하게 즉시 적용
+            backgroundImageView.image = nil
+            backgroundImageView.alpha = 0.3
+            setMonthColor(month: month)
+        }
+        
         if animated {
             UIView.transition(
                 with: self.contentView,
                 duration: 0.4,
-                options: [.transitionFlipFromRight, .allowUserInteraction, .curveLinear], // .curveLinear 추가
+                options: [.transitionFlipFromRight, .allowUserInteraction, .curveLinear],
                 animations: {
                     self.calendarContainerView.isHidden = true
                     self.containerView.isHidden = false
@@ -981,26 +1066,38 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
                 completion: { _ in
                     self.isFlipped = false
                     print("CardCell: \(self.month)월 카드 되돌리기 애니메이션 완료")
-                    self.loadDisplayMode()
-                    self.updateCardAppearance()
+                    
+                    // 애니메이션 완료 후 무거운 이미지 로딩 작업 수행
+                    if self.displayMode == .featureImage {
+                        if self.hasCustomFeatureImage {
+                            self.loadCustomFeatureImage()
+                        } else {
+                            self.loadRandomMonthImage()
+                        }
+                    }
                 }
             )
         } else {
-            // 애니메이션 없이 즉시 상태 변경
+            // 애니메이션 없을 때는 바로 완료 처리
             calendarContainerView.isHidden = true
             containerView.isHidden = false
             isFlipped = false
             
-            loadDisplayMode()
-            updateCardAppearance()
+            // 이미지 로딩
+            if displayMode == .featureImage {
+                if hasCustomFeatureImage {
+                    loadCustomFeatureImage()
+                } else {
+                    loadRandomMonthImage()
+                }
+            }
         }
         
         // 디버그 로그
         if animated {
             print("CardCell: \(month)월 카드를 원래대로 되돌리기 시작 (태그: \(self.tag))")
         }
-    }
-    // MARK: - Helper Methods
+    }    // MARK: - Helper Methods
     private func daysInMonth(month: Int, year: Int) -> Int {
         let calendar = Calendar.current
         
