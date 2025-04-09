@@ -82,7 +82,7 @@ class CardOptionPopupView: UIView {
     
     private let selectButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("선택", for: .normal)
+        button.setTitle("완료", for: .normal)
         button.setTitleColor(.white, for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 16, weight: .bold)
         button.backgroundColor = UIColor(hex: "FF6A6A") // 메인 컬러
@@ -177,28 +177,36 @@ class CardOptionPopupView: UIView {
     private func setupActions() {
         // 버튼 액션 설정
         colorCardButton.rx.tap
-            .subscribe(onNext: { [weak self] in
-                self?.delegate?.didSelectOption(.colorCard)
-            })
-            .disposed(by: disposeBag)
-        
-        colorSettingButton.rx.tap
-            .subscribe(onNext: { [weak self] in
-                self?.delegate?.didSelectOption(.colorSetting)
-            })
-            .disposed(by: disposeBag)
-        
-        featureImageButton.rx.tap
-            .subscribe(onNext: { [weak self] in
-                self?.delegate?.didSelectOption(.featureImage)
-            })
-            .disposed(by: disposeBag)
-        
-        selectFeatureImageButton.rx.tap
-            .subscribe(onNext: { [weak self] in
-                self?.delegate?.didSelectOption(.selectFeatureImage)
-            })
-            .disposed(by: disposeBag)
+                .subscribe(onNext: { [weak self] in
+                    guard let self = self else { return }
+                    self.updateSelectedOption(.colorCard) // 실시간 UI 업데이트
+                    self.delegate?.didSelectOption(.colorCard)
+                })
+                .disposed(by: disposeBag)
+            
+            colorSettingButton.rx.tap
+                .subscribe(onNext: { [weak self] in
+                    guard let self = self else { return }
+                    self.updateSelectedOption(.colorSetting) // 실시간 UI 업데이트
+                    self.delegate?.didSelectOption(.colorSetting)
+                })
+                .disposed(by: disposeBag)
+            
+            featureImageButton.rx.tap
+                .subscribe(onNext: { [weak self] in
+                    guard let self = self else { return }
+                    self.updateSelectedOption(.featureImage) // 실시간 UI 업데이트
+                    self.delegate?.didSelectOption(.featureImage)
+                })
+                .disposed(by: disposeBag)
+            
+            selectFeatureImageButton.rx.tap
+                .subscribe(onNext: { [weak self] in
+                    guard let self = self else { return }
+                    self.updateSelectedOption(.selectFeatureImage) // 실시간 UI 업데이트
+                    self.delegate?.didSelectOption(.selectFeatureImage)
+                })
+                .disposed(by: disposeBag)
         
         // 취소 버튼
         cancelButton.rx.tap
@@ -252,10 +260,13 @@ class CardOptionPopupView: UIView {
     // 버튼 선택 상태 업데이트
     func updateSelectedOption(_ option: OptionType) {
         // 모든 버튼 초기화
-        [colorCardButton, colorSettingButton, featureImageButton, selectFeatureImageButton].forEach {
-            $0.backgroundColor = UIColor.systemGray6
-            $0.setTitleColor(.black, for: .normal)
-        }
+        let buttons = [colorCardButton, colorSettingButton, featureImageButton, selectFeatureImageButton]
+            buttons.forEach { button in
+                button.backgroundColor = UIColor.systemGray6
+                button.setTitleColor(.black, for: .normal)
+                button.layer.borderWidth = 0 // border 제거
+                button.layer.borderColor = nil // border 색상 제거
+            }
         
         // 선택된 버튼 강조
         let selectedButton: UIButton

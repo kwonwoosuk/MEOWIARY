@@ -23,10 +23,10 @@ class ColorPaletteCell: UICollectionViewCell {
     
     private let selectionIndicatorView: UIView = {
         let view = UIView()
-        view.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.2)
+        view.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
         view.layer.cornerRadius = 8
         view.layer.borderWidth = 3
-        view.layer.borderColor = UIColor.systemBlue.cgColor
+        view.layer.borderColor = DesignSystem.Color.Tint.main.inUIColor().cgColor
         view.isHidden = true
         return view
     }()
@@ -127,56 +127,56 @@ class ColorPaletteCell: UICollectionViewCell {
     }
     
     func configure(with color: UIColor, name: String, hexCode: String) {
-           colorView.backgroundColor = color
-           nameLabel.text = name
-           hexLabel.text = "#\(hexCode)"
-           
-           addButton.isHidden = true
-           colorView.isHidden = false
-           
-           // 항상 선택 상태 업데이트
-           updateSelectionState()
-       }
+        colorView.backgroundColor = color
+        nameLabel.text = name
+        hexLabel.text = "#\(hexCode)"
+        
+        addButton.isHidden = true
+        colorView.isHidden = false
+        
+        // 항상 선택 상태 업데이트
+        updateSelectionState()
+    }
     
     func configureAsAddButton() {
-           addButton.isHidden = false
-           colorView.isHidden = true
-           
-           nameLabel.text = ""
-           hexLabel.text = ""
-       }
+        addButton.isHidden = false
+        colorView.isHidden = true
+        
+        nameLabel.text = ""
+        hexLabel.text = ""
+    }
     
     private func updateSelectionState() {
-            if isAddButton {
-                selectionIndicatorView.isHidden = true
-                return
+        if isAddButton {
+            selectionIndicatorView.isHidden = true
+            return
+        }
+        
+        // 선택 상태에 따른 시각적 변화
+        selectionIndicatorView.isHidden = !isSelected
+        
+        // 애니메이션으로 선택 효과 강화
+        if isSelected {
+            UIView.animate(withDuration: 0.2) {
+                self.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
             }
-            
-            // 선택 상태에 따른 시각적 변화
-            selectionIndicatorView.isHidden = !isSelected
-            
-            // 애니메이션으로 선택 효과 강화
-            if isSelected {
-                UIView.animate(withDuration: 0.2) {
-                    self.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
-                }
-            } else {
-                UIView.animate(withDuration: 0.2) {
-                    self.transform = .identity
-                }
+        } else {
+            UIView.animate(withDuration: 0.2) {
+                self.transform = .identity
             }
         }
+    }
     
     override func prepareForReuse() {
-         super.prepareForReuse()
-         colorView.backgroundColor = nil
-         nameLabel.text = nil
-         hexLabel.text = nil
-         isSelected = false
-         transform = .identity
-         selectionIndicatorView.isHidden = true
-         contentView.backgroundColor = .white
-     }
+        super.prepareForReuse()
+        colorView.backgroundColor = nil
+        nameLabel.text = nil
+        hexLabel.text = nil
+        isSelected = false
+        transform = .identity
+        selectionIndicatorView.isHidden = true
+        contentView.backgroundColor = .white
+    }
 }
 
 

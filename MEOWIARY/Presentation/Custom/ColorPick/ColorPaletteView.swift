@@ -57,7 +57,7 @@ protocol ColorPaletteViewDelegate: AnyObject {
     func didCancelSelection()
 }
 
-class ColorPaletteView: BaseView {
+class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
     
     // MARK: - Properties
     weak var delegate: ColorPaletteViewDelegate?
@@ -175,10 +175,15 @@ class ColorPaletteView: BaseView {
         backgroundColor = .white
         layer.cornerRadius = 16
         
+        
+        
         // 컬렉션뷰 설정
         colorCollectionView.delegate = self
         colorCollectionView.dataSource = self
         
+        colorCollectionView.isUserInteractionEnabled = true // 터치 활성화 명시
+        colorCollectionView.delaysContentTouches = false // 터치 지연 비활성화
+        colorCollectionView.canCancelContentTouches = true // 터치 취소 허용
         // 버튼 액션 설정
         cancelButton.rx.tap
             .subscribe(onNext: { [weak self] in
@@ -188,18 +193,17 @@ class ColorPaletteView: BaseView {
         
         selectedIndexPathRelay
             .subscribe(onNext: { [weak self] indexPath in
-                // 버튼 활성화/비활성화 상태 관리
                 guard let self = self else { return }
-                if let indexPath = indexPath, indexPath.row < self.palettes.count {
-                    self.selectButton.isEnabled = true
-                    self.selectButton.alpha = 1.0
-                } else {
-                    self.selectButton.isEnabled = false
-                    self.selectButton.alpha = 0.5
+                DispatchQueue.main.async {
+                    if let indexPath = indexPath, indexPath.row < self.palettes.count {
+                        self.selectButton.isEnabled = true
+                        self.selectButton.alpha = 1.0
+                    } else {
+                        self.selectButton.isEnabled = false
+                        self.selectButton.alpha = 0.5
+                    }
+                    self.updateSelectedCell(indexPath: indexPath)
                 }
-                
-                // 컬렉션뷰 아이템 선택 상태 업데이트
-                self.updateSelectedCell(indexPath: indexPath)
             })
             .disposed(by: disposeBag)
         
@@ -207,15 +211,11 @@ class ColorPaletteView: BaseView {
             .subscribe(onNext: { [weak self] in
                 guard let self = self,
                       let indexPath = self.selectedIndexPathRelay.value,
-                      indexPath.row < self.palettes.count else {
-                    return
-                }
-                
+                      indexPath.row < self.palettes.count else { return }
                 let selectedPalette = self.palettes[indexPath.row]
                 self.delegate?.didSelectColor(selectedPalette.color, hexCode: selectedPalette.hexCode)
             })
             .disposed(by: disposeBag)
-        
         // 기본 팔레트 로드
         loadDefaultPalettes()
         loadCustomPalettes()
@@ -231,15 +231,11 @@ class ColorPaletteView: BaseView {
     // MARK: - Private Methods
     
     private func updateSelectedCell(indexPath: IndexPath?) {
-        // 모든 셀의 선택 상태 초기화
-        for visibleIndexPath in colorCollectionView.indexPathsForVisibleItems {
-              colorCollectionView.deselectItem(at: visibleIndexPath, animated: false)
-          }
-          
-          // 선택된 셀만 선택 상태로 설정
-          if let indexPath = indexPath {
-              colorCollectionView.selectItem(at: indexPath, animated: true, scrollPosition: [])
-          }
+        colorCollectionView.indexPathsForVisibleItems.forEach { visibleIndexPath in
+                if let cell = colorCollectionView.cellForItem(at: visibleIndexPath) as? ColorPaletteCell {
+                    cell.isSelected = (visibleIndexPath == indexPath)
+                }
+            }
     }
     
     private func loadDefaultPalettes() {
@@ -371,6 +367,7 @@ extension ColorPaletteView: UICollectionViewDataSource {
 // MARK: - UICollectionViewDelegate
 extension ColorPaletteView: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        print("Cell selected at: \(indexPath.row)")
         if indexPath.row == palettes.count {
             // 추가 버튼 선택 시 컬러 피커 표시
             showColorPicker()
@@ -379,16 +376,17 @@ extension ColorPaletteView: UICollectionViewDelegate {
         } else {
             // 색상 선택 시 선택 상태 업데이트
             selectedIndexPathRelay.accept(indexPath)
+            updateSelectedCell(indexPath: indexPath)
             
             // 선택된 셀에 피드백 추가
             let cell = collectionView.cellForItem(at: indexPath) as? ColorPaletteCell
-            UIView.animate(withDuration: 0.1) {
-                cell?.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
-            } completion: { _ in
-                UIView.animate(withDuration: 0.1) {
-                    cell?.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
-                }
-            }
+//            UIView.animate(withDuration: 0.1) {
+//                cell?.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+//            } completion: { _ in
+//                UIView.animate(withDuration: 0.1) {
+//                    cell?.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+//                }
+//            }
         }
     }
 }
@@ -398,5 +396,14 @@ extension ColorPaletteView: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         let width = (collectionView.frame.width - 20) / 3 // 한 줄에 3개 셀
         return CGSize(width: width, height: width + 30) // 색상 + 텍스트 공간
+    }
+    
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        // 터치가 컬렉션 뷰 내부에서 발생하면 제스처를 무시
+        let location = touch.location(in: colorCollectionView)
+        if colorCollectionView.bounds.contains(location) {
+            return false
+        }
+        return true
     }
 }

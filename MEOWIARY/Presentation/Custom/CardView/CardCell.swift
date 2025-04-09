@@ -451,25 +451,18 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
         
         // 배경 탭 닫기 제스처 추가
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(closeColorPalette))
-        tapGesture.delegate = self
+        tapGesture.delegate = colorPaletteView
         popupBackground.addGestureRecognizer(tapGesture)
     }
     
     // 4. 색상 팔레트 닫기 메서드 추가
     @objc private func closeColorPalette(_ gesture: UITapGestureRecognizer) {
-        // 팔레트 뷰를 직접 탭한 경우는 닫지 않음
-        if let colorPaletteView = colorPaletteBackgroundView?.subviews.first as? ColorPaletteView,
-           colorPaletteView.frame.contains(gesture.location(in: colorPaletteBackgroundView)) {
-            return
-        }
-        
-        // 팔레트 애니메이션으로 닫기
         UIView.animate(withDuration: 0.2, animations: {
-            self.colorPaletteBackgroundView?.alpha = 0
-        }) { _ in
-            self.colorPaletteBackgroundView?.removeFromSuperview()
-            self.colorPaletteBackgroundView = nil
-        }
+                self.colorPaletteBackgroundView?.alpha = 0
+            }) { _ in
+                self.colorPaletteBackgroundView?.removeFromSuperview()
+                self.colorPaletteBackgroundView = nil
+            }
     }
     
     // 5. 월별 색상 로드 기능 수정 - setMonthColor 메서드 업데이트
@@ -1063,17 +1056,17 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
         return messageLabel
     }
     
-    private func updateCalendarWithSymptoms() {
-        // Sample data - this would come from your ViewModel
-        symptomsData = [5: true, 18: true, 24: true]
-        createCalendarGrid()
-    }
+//    private func updateCalendarWithSymptoms() {
+//        // Sample data - this would come from your ViewModel
+//        symptomsData = [5: true, 18: true, 24: true]
+//        createCalendarGrid()
+//    }
     
-    private func resetCalendarSymptoms() {
-        // Clear symptom data
-        symptomsData.removeAll()
-        createCalendarGrid()
-    }
+//    private func resetCalendarSymptoms() {
+//        // Clear symptom data
+//        symptomsData.removeAll()
+//        createCalendarGrid()
+//    }
 }
 
 
@@ -1114,21 +1107,23 @@ extension CardCell: ColorPaletteViewDelegate {
 
 extension CardCell: CardOptionPopupDelegate {
     func didSelectOption(_ option: CardOptionPopupView.OptionType) {
-        switch option {
-        case .colorCard:
-            setDisplayMode(.colorCard)
-        case .colorSetting:
-            showColorPaletteView()
-        case .featureImage:
-            setDisplayMode(.featureImage)
-        case .selectFeatureImage:
-            if let action = selectFeatureImageAction {
-                action(year, month)
+            switch option {
+            case .colorCard:
+                setDisplayMode(.colorCard)
+                updateCardAppearance() // 즉시 UI 갱신
+            case .colorSetting:
+                showColorPaletteView()
+            case .featureImage:
+                setDisplayMode(.featureImage)
+                updateCardAppearance() // 즉시 UI 갱신
+            case .selectFeatureImage:
+                if let action = selectFeatureImageAction {
+                    action(year, month)
+                }
             }
         }
-    }
     
     func didCancelOptionSelection() {
-        // 취소 시 추가 작업이 필요하면 여기에 구현
+        
     }
 }
