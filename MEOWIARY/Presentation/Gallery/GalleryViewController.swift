@@ -22,6 +22,9 @@ final class GalleryViewController: BaseViewController {
     private let favoriteFilterEnabledRelay = BehaviorRelay<Bool>(value: false)
     private let years: [Int] = Array(2000...2100)
     private let months: [String] = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"]
+    private let searchTextSubject = BehaviorRelay<String>(value: "")
+    
+    private var collectionViewTopConstraint: Constraint?
     
     // MARK: - UI Components
     private let navigationView: UIView = {
@@ -37,7 +40,6 @@ final class GalleryViewController: BaseViewController {
         return button
     }()
     
-    
     private let yearMonthButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("2025년 4월", for: .normal)
@@ -47,13 +49,18 @@ final class GalleryViewController: BaseViewController {
         return button
     }()
     
-    
-    
-    private let menuButton: UIButton = {
+    private let searchButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: "line.3.horizontal.decrease"), for: .normal)
+        button.setImage(UIImage(systemName: "magnifyingglass"), for: .normal)
         button.tintColor = DesignSystem.Color.Tint.text.inUIColor()
         return button
+    }()
+    
+    private let searchBar: UISearchBar = {
+        let searchBar = UISearchBar()
+        searchBar.placeholder = "날짜 또는 일기 내용 검색"
+        searchBar.isHidden = true
+        return searchBar
     }()
     
     private lazy var collectionView: UICollectionView = {
@@ -147,8 +154,8 @@ final class GalleryViewController: BaseViewController {
         view.addSubview(navigationView)
         navigationView.addSubview(favoriteFilterButton)
         navigationView.addSubview(yearMonthButton)
-        
-        //    navigationView.addSubview(menuButton) // 추후 정렬버튼으로 업데이트 예정
+        navigationView.addSubview(searchButton)
+        navigationView.addSubview(searchBar)
         
         view.addSubview(collectionView)
         view.addSubview(emptyView)
@@ -160,6 +167,7 @@ final class GalleryViewController: BaseViewController {
         datePickerContainer.addSubview(datePicker)
         datePickerContainer.addSubview(datePickerConfirmButton)
         datePickerContainer.addSubview(datePickerCancelButton)
+        view.bringSubviewToFront(searchBar)
     }
     
     override func configureLayout() {
@@ -169,21 +177,31 @@ final class GalleryViewController: BaseViewController {
             make.height.equalTo(50)
         }
         
-        
         favoriteFilterButton.snp.makeConstraints { make in
             make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
             make.centerY.equalToSuperview()
             make.width.height.equalTo(30)
         }
         
-        
         yearMonthButton.snp.makeConstraints { make in
             make.center.equalToSuperview()
             make.height.equalTo(30)
         }
         
-        collectionView.snp.makeConstraints { make in
+        searchButton.snp.makeConstraints { make in
+            make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
+            make.centerY.equalToSuperview()
+            make.width.height.equalTo(30)
+        }
+        
+        searchBar.snp.makeConstraints { make in
             make.top.equalTo(navigationView.snp.bottom)
+            make.leading.trailing.equalToSuperview()
+            make.height.equalTo(50)
+        }
+        
+        collectionView.snp.makeConstraints { make in
+            self.collectionViewTopConstraint = make.top.equalTo(navigationView.snp.bottom).constraint
             make.leading.trailing.bottom.equalToSuperview()
         }
         
@@ -245,29 +263,22 @@ final class GalleryViewController: BaseViewController {
     
     // MARK: - Binding
     override func bind() {
-        
         favoriteFilterEnabledRelay
             .subscribe(onNext: { [weak self] isEnabled in
-                // 버튼 상태에 따라 이미지와 색상 변경
                 let imageName = isEnabled ? "heart.fill" : "heart"
                 let tintColor = isEnabled ?
-                DesignSystem.Color.Tint.main.inUIColor() :
-                DesignSystem.Color.Tint.darkGray.inUIColor()
-                
+                    DesignSystem.Color.Tint.main.inUIColor() :
+                    DesignSystem.Color.Tint.darkGray.inUIColor()
                 self?.favoriteFilterButton.setImage(UIImage(systemName: imageName), for: .normal)
                 self?.favoriteFilterButton.tintColor = tintColor
             })
             .disposed(by: disposeBag)
         
-        // 즐겨찾기 버튼 탭 이벤트 처리
         favoriteFilterButton.rx.tap
             .subscribe(onNext: { [weak self] in
                 guard let self = self else { return }
-                // 상태 토글
                 let newState = !self.favoriteFilterEnabledRelay.value
                 self.favoriteFilterEnabledRelay.accept(newState)
-                
-                
                 let message = newState ? "즐겨찾기한 항목만 표시합니다" : "모든 항목을 표시합니다"
                 self.showToast(message: message)
             })
@@ -276,6 +287,76 @@ final class GalleryViewController: BaseViewController {
         yearMonthButton.rx.tap
             .subscribe(onNext: { [weak self] in
                 self?.showDatePicker()
+            })
+            .disposed(by: disposeBag)
+        
+        searchButton.rx.tap
+            .subscribe(onNext: { [weak self] in
+                guard let self = self else { return }
+                self.searchBar.isHidden.toggle()
+                if self.searchBar.isHidden {
+                    self.searchTextSubject.accept("")
+                    self.searchBar.resignFirstResponder()
+                    self.collectionViewTopConstraint?.update(offset: 0)
+                } else {
+                    self.searchBar.becomeFirstResponder()
+                    self.collectionViewTopConstraint?.update(offset: 50)
+                }
+                UIView.animate(withDuration: 0.3) {
+                    self.view.layoutIfNeeded()
+                }
+            })
+            .disposed(by: disposeBag)
+        
+        searchBar.rx.text.orEmpty
+            .debounce(.milliseconds(300), scheduler: MainScheduler.instance)
+            .distinctUntilChanged()
+            .bind(to: searchTextSubject)
+            .disposed(by: disposeBag)
+        
+        let searchBarTap = UITapGestureRecognizer()
+        searchBar.addGestureRecognizer(searchBarTap)
+        searchBarTap.rx.event
+            .subscribe(onNext: { [weak self] _ in
+                guard let self = self, !self.searchBar.isHidden else { return }
+                print("SearchBar tapped - Attempting to become first responder")
+                self.searchBar.becomeFirstResponder()
+            })
+            .disposed(by: disposeBag)
+        
+        // 배경 탭 제스처 설정
+        let backgroundTap = UITapGestureRecognizer()
+        backgroundTap.delegate = self
+        view.addGestureRecognizer(backgroundTap)
+        backgroundTap.cancelsTouchesInView = false
+        backgroundTap.rx.event
+            .subscribe(onNext: { [weak self] recognizer in
+                guard let self = self, !self.searchBar.isHidden, self.datePickerOverlay.isHidden else { return }
+                let location = recognizer.location(in: self.view)
+                let searchBarFrame = self.searchBar.frame
+                print("Background tapped at: \(location), SearchBar frame: \(searchBarFrame)")
+                if !searchBarFrame.contains(location) {
+                    print("Hiding search bar via background tap")
+                    self.searchBar.isHidden = true
+                    self.searchTextSubject.accept("")
+                    self.searchBar.resignFirstResponder()
+                    self.collectionViewTopConstraint?.update(offset: 0)
+                    UIView.animate(withDuration: 0.3) {
+                        self.view.layoutIfNeeded()
+                    }
+                }
+            })
+            .disposed(by: disposeBag)
+        
+        let datePickerTap = UITapGestureRecognizer()
+        datePickerOverlay.addGestureRecognizer(datePickerTap)
+        datePickerTap.rx.event
+            .subscribe(onNext: { [weak self] recognizer in
+                guard let self = self else { return }
+                let location = recognizer.location(in: self.datePickerOverlay)
+                if location.y < self.datePickerContainer.frame.minY || location.y > self.datePickerContainer.frame.maxY {
+                    self.hideDatePicker()
+                }
             })
             .disposed(by: disposeBag)
         
@@ -301,22 +382,11 @@ final class GalleryViewController: BaseViewController {
             })
             .disposed(by: disposeBag)
         
-        let tapGesture = UITapGestureRecognizer()
-        datePickerOverlay.addGestureRecognizer(tapGesture)
-        
-        tapGesture.rx.event
-            .subscribe(onNext: { [weak self] recognizer in
-                if recognizer.location(in: self?.datePickerOverlay).y < (self?.datePickerContainer.frame.minY ?? 0) ||
-                    recognizer.location(in: self?.datePickerOverlay).y > (self?.datePickerContainer.frame.maxY ?? 0) {
-                    self?.hideDatePicker()
-                }
-            })
-            .disposed(by: disposeBag)
-        
         let input = GalleryViewModel.Input(
             viewDidLoad: Observable.just(()),
             yearMonthSelected: yearMonthSubject.asObservable(),
-            toggleFavoriteFilter: favoriteFilterEnabledRelay.asObservable()
+            toggleFavoriteFilter: favoriteFilterEnabledRelay.asObservable(),
+            searchText: searchTextSubject.asObservable()
         )
         
         let output = viewModel.transform(input: input)
@@ -325,6 +395,14 @@ final class GalleryViewController: BaseViewController {
             .drive(collectionView.rx.items(cellIdentifier: "GalleryCell", cellType: GalleryCell.self)) { [weak self] (index, imageData, cell) in
                 guard let self = self else { return }
                 cell.configure(with: imageData, imageManager: self.viewModel.imageManager)
+                
+                let searchText = self.searchTextSubject.value
+                let isMatch = !searchText.isEmpty && (
+                    "\(imageData.day)".contains(searchText) ||
+                    (imageData.notes?.lowercased().contains(searchText.lowercased()) ?? false)
+                )
+                cell.contentView.layer.borderWidth = isMatch ? 2 : 0
+                cell.contentView.layer.borderColor = isMatch ? DesignSystem.Color.Tint.main.inUIColor().cgColor : nil
                 
                 cell.favoriteButtonTap
                     .subscribe(onNext: { [weak self] in
@@ -349,6 +427,15 @@ final class GalleryViewController: BaseViewController {
         collectionView.rx.modelSelected(GalleryViewModel.ImageData.self)
             .subscribe(onNext: { [weak self] imageData in
                 guard let self = self else { return }
+                if !self.searchBar.isHidden {
+                    self.searchBar.isHidden = true
+                    self.searchTextSubject.accept("")
+                    self.searchBar.resignFirstResponder()
+                    self.collectionViewTopConstraint?.update(offset: 0)
+                    UIView.animate(withDuration: 0.3) {
+                        self.view.layoutIfNeeded()
+                    }
+                }
                 self.showImageDetail(year: imageData.year, month: imageData.month, day: imageData.day)
             })
             .disposed(by: disposeBag)
@@ -434,6 +521,7 @@ final class GalleryViewController: BaseViewController {
     }
 }
 
+// MARK: - UIPickerViewDelegate, UIPickerViewDataSource
 extension GalleryViewController: UIPickerViewDelegate, UIPickerViewDataSource {
     func numberOfComponents(in pickerView: UIPickerView) -> Int {
         return 2
@@ -457,5 +545,19 @@ extension GalleryViewController: UIPickerViewDelegate, UIPickerViewDataSource {
     
     func pickerView(_ pickerView: UIPickerView, widthForComponent component: Int) -> CGFloat {
         return component == 0 ? 120 : 80
+    }
+}
+
+// MARK: - UIGestureRecognizerDelegate
+extension GalleryViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        // 터치가 컬렉션뷰의 셀에서 발생했는지 확인
+        let location = touch.location(in: collectionView)
+        if let indexPath = collectionView.indexPathForItem(at: location),
+           collectionView.cellForItem(at: indexPath) != nil {
+            print("Touch in collection view cell at indexPath: \(indexPath)")
+            return false // 셀 터치 시 제스처 무시
+        }
+        return true // 그 외의 경우 제스처 실행
     }
 }

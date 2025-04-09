@@ -134,9 +134,9 @@ final class CardCalendarView: BaseView {
             // 중요: 사진 모드에서는 증상이 없는 DayCard만 표시 또는
             // 증상과 함께 기록된 이미지는 제외
             let photoDayCardData = allDayCardData.filter { (_, dayCard) in
-                return dayCard.symptoms.isEmpty && !dayCard.imageRecords.isEmpty
-            }
-            dayCardData = photoDayCardData
+                    return !dayCard.imageRecords.isEmpty
+                }
+                dayCardData = photoDayCardData
             
             // 캘린더 그리드 업데이트 (플립 상태일 때만)
             if isCalendarMode || forceReload {

@@ -11,204 +11,204 @@ import RxCocoa
 import SnapKit
 
 final class SymptomDetailViewController: BaseViewController {
-  
-  // MARK: - Properties
-  private let disposeBag = DisposeBag()
-  private let viewModel: SymptomDetailViewModel
-  private var loadedImages: [UIImage?] = [] // 로드된 이미지를 저장
-  var onDelete: (() -> Void)?
-  
-  // MARK: - UI Components
-  private let navigationBarView = CustomNavigationBarView()
-  
-  private lazy var collectionView: UICollectionView = {
-    let layout = UICollectionViewFlowLayout()
-    layout.scrollDirection = .horizontal
-    layout.minimumLineSpacing = 0
-    layout.minimumInteritemSpacing = 0
-    let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
-    collectionView.isPagingEnabled = true
-    collectionView.showsHorizontalScrollIndicator = false
-    collectionView.backgroundColor = .white
-    return collectionView
-  }()
-  
-  private let pageControl: UIPageControl = {
-    let pageControl = UIPageControl()
-    pageControl.currentPageIndicatorTintColor = .white
-    pageControl.pageIndicatorTintColor = .white.withAlphaComponent(0.5)
-    return pageControl
-  }()
-  
-  private let dateLabel: UILabel = {
-    let label = UILabel()
-    label.textColor = DesignSystem.Color.Tint.text.inUIColor()
-    label.font = DesignSystem.Font.Weight.bold(size: DesignSystem.Font.Size.medium)
-    return label
-  }()
-  
-  private let symptomNameLabel: UILabel = {
-    let label = UILabel()
-    label.textColor = DesignSystem.Color.Tint.text.inUIColor()
-    label.font = DesignSystem.Font.Weight.bold(size: DesignSystem.Font.Size.large)
-    label.textAlignment = .center
-    return label
-  }()
-  
-  private let severityIndicator: UIView = {
-    let view = UIView()
-    view.layer.cornerRadius = 12
-    view.clipsToBounds = true
-    return view
-  }()
-  
-  private let severityLabel: UILabel = {
-    let label = UILabel()
-    label.textColor = .white
-    label.font = DesignSystem.Font.Weight.bold(size: DesignSystem.Font.Size.small)
-    label.textAlignment = .center
-    return label
-  }()
-  
-  private let favoriteButton: UIButton = {
-    let button = UIButton(type: .system)
-    button.setImage(UIImage(systemName: "heart"), for: .normal)
-    button.tintColor = DesignSystem.Color.Tint.main.inUIColor()
-    return button
-  }()
-  
-  private let shareButton: UIButton = {
-    let button = UIButton(type: .system)
-    button.setImage(UIImage(systemName: "square.and.arrow.up"), for: .normal)
-    button.tintColor = DesignSystem.Color.Tint.action.inUIColor()
-    return button
-  }()
-  
-  private let deleteButton: UIButton = {
-    let button = UIButton(type: .system)
-    button.setImage(UIImage(systemName: "trash"), for: .normal)
-    button.tintColor = .systemRed
-    return button
-  }()
-  
-  private let notesLabel: UILabel = {
-    let label = UILabel()
-    label.textColor = DesignSystem.Color.Tint.darkGray.inUIColor()
-    label.font = DesignSystem.Font.Weight.regular(size: DesignSystem.Font.Size.medium)
-    label.numberOfLines = 0
-    label.isHidden = true
-    return label
-  }()
-  
-  private let loadingIndicator: UIActivityIndicatorView = {
-    let indicator = UIActivityIndicatorView(style: .large)
-    indicator.color = .gray
-    indicator.hidesWhenStopped = true
-    return indicator
-  }()
-  
-  // MARK: - Initialization
-  init(year: Int, month: Int, day: Int, imageManager: ImageManager) {
-    self.viewModel = SymptomDetailViewModel(year: year, month: month, day: day, imageManager: imageManager)
-    super.init(nibName: nil, bundle: nil)
-  }
-  
-  required init?(coder: NSCoder) {
-    fatalError("init(coder:) has not been implemented")
-  }
-  
-  // MARK: - Lifecycle
-  override func viewDidLoad() {
-    super.viewDidLoad()
-    collectionView.register(DetailCell.self, forCellWithReuseIdentifier: "DetailCell")
-    collectionView.delegate = self
-    collectionView.dataSource = self
-  }
-  
-  // MARK: - UI Setup
-  override func configureHierarchy() {
-    view.addSubview(navigationBarView)
-    view.addSubview(symptomNameLabel)
-    view.addSubview(severityIndicator)
-    severityIndicator.addSubview(severityLabel)
-    view.addSubview(collectionView)
-    view.addSubview(pageControl)
-    view.addSubview(dateLabel)
-    view.addSubview(shareButton)
-    view.addSubview(deleteButton)
-    view.addSubview(notesLabel)
-    view.addSubview(loadingIndicator)
-  }
-  
-  override func configureLayout() {
-      navigationBarView.snp.makeConstraints { make in
-              make.top.equalTo(view.safeAreaLayoutGuide.snp.top)
-              make.leading.trailing.equalToSuperview()
-              make.height.equalTo(50)
-          }
-          
-          symptomNameLabel.snp.makeConstraints { make in
-              make.top.equalTo(navigationBarView.snp.bottom).offset(10)
-              make.leading.trailing.equalToSuperview().inset(DesignSystem.Layout.standardMargin)
-              make.height.equalTo(30)
-          }
-          
-          severityIndicator.snp.makeConstraints { make in
-              make.top.equalTo(symptomNameLabel.snp.bottom).offset(8)
-              make.centerX.equalToSuperview()
-              make.width.equalTo(80)
-              make.height.equalTo(24)
-          }
-          
-          severityLabel.snp.makeConstraints { make in
-              make.edges.equalToSuperview()
-          }
-          
-          collectionView.snp.makeConstraints { make in
-              make.top.equalTo(severityIndicator.snp.bottom).offset(16)
-              make.leading.trailing.equalToSuperview()
-              make.height.equalTo(view.snp.width) // 정사각형 비율 유지
-          }
-          
-          pageControl.snp.makeConstraints { make in
-              make.centerX.equalToSuperview()
-              make.top.equalTo(collectionView.snp.bottom).offset(8)
-          }
-          
-          notesLabel.snp.makeConstraints { make in
-              make.top.equalTo(pageControl.snp.bottom).offset(DesignSystem.Layout.standardMargin)
-              make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
-              make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
-          }
-          
-          dateLabel.snp.makeConstraints { make in
-              make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
-              make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom).offset(-DesignSystem.Layout.standardMargin)
-          }
-          
-          deleteButton.snp.makeConstraints { make in
-              make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
-              make.centerY.equalTo(dateLabel)
-              make.width.height.equalTo(30)
-          }
-          
-          shareButton.snp.makeConstraints { make in
-              make.trailing.equalTo(deleteButton.snp.leading).offset(-DesignSystem.Layout.standardMargin)
-              make.centerY.equalTo(dateLabel)
-              make.width.height.equalTo(30)
-          }
-          
-          loadingIndicator.snp.makeConstraints { make in
-              make.center.equalTo(collectionView)
-          }
-      }
-  
-  override func configureView() {
-    view.backgroundColor = .white
-    navigationBarView.configure(title: "증상 상세", leftButtonType: .back)
-  }
-  
-  // MARK: - Binding
+    
+    // MARK: - Properties
+    private let disposeBag = DisposeBag()
+    private let viewModel: SymptomDetailViewModel
+    private var loadedImages: [UIImage?] = [] // 로드된 이미지를 저장
+    var onDelete: (() -> Void)?
+    
+    // MARK: - UI Components
+    private let navigationBarView = CustomNavigationBarView()
+    
+    private lazy var collectionView: UICollectionView = {
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .horizontal
+        layout.minimumLineSpacing = 0
+        layout.minimumInteritemSpacing = 0
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.isPagingEnabled = true
+        collectionView.showsHorizontalScrollIndicator = false
+        collectionView.backgroundColor = .white
+        return collectionView
+    }()
+    
+    private let pageControl: UIPageControl = {
+        let pageControl = UIPageControl()
+        pageControl.currentPageIndicatorTintColor = .white
+        pageControl.pageIndicatorTintColor = .white.withAlphaComponent(0.5)
+        return pageControl
+    }()
+    
+    private let dateLabel: UILabel = {
+        let label = UILabel()
+        label.textColor = DesignSystem.Color.Tint.text.inUIColor()
+        label.font = DesignSystem.Font.Weight.bold(size: DesignSystem.Font.Size.medium)
+        return label
+    }()
+    
+    private let symptomNameLabel: UILabel = {
+        let label = UILabel()
+        label.textColor = DesignSystem.Color.Tint.text.inUIColor()
+        label.font = DesignSystem.Font.Weight.bold(size: DesignSystem.Font.Size.large)
+        label.textAlignment = .center
+        return label
+    }()
+    
+    private let severityIndicator: UIView = {
+        let view = UIView()
+        view.layer.cornerRadius = 12
+        view.clipsToBounds = true
+        return view
+    }()
+    
+    private let severityLabel: UILabel = {
+        let label = UILabel()
+        label.textColor = .white
+        label.font = DesignSystem.Font.Weight.bold(size: DesignSystem.Font.Size.small)
+        label.textAlignment = .center
+        return label
+    }()
+    
+    private let favoriteButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setImage(UIImage(systemName: "heart"), for: .normal)
+        button.tintColor = DesignSystem.Color.Tint.main.inUIColor()
+        return button
+    }()
+    
+    private let shareButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setImage(UIImage(systemName: "square.and.arrow.up"), for: .normal)
+        button.tintColor = DesignSystem.Color.Tint.action.inUIColor()
+        return button
+    }()
+    
+    private let deleteButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setImage(UIImage(systemName: "trash"), for: .normal)
+        button.tintColor = .systemRed
+        return button
+    }()
+    
+    private let notesLabel: UILabel = {
+        let label = UILabel()
+        label.textColor = DesignSystem.Color.Tint.darkGray.inUIColor()
+        label.font = DesignSystem.Font.Weight.regular(size: DesignSystem.Font.Size.medium)
+        label.numberOfLines = 0
+        label.isHidden = true
+        return label
+    }()
+    
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .large)
+        indicator.color = .gray
+        indicator.hidesWhenStopped = true
+        return indicator
+    }()
+    
+    // MARK: - Initialization
+    init(year: Int, month: Int, day: Int, imageManager: ImageManager) {
+        self.viewModel = SymptomDetailViewModel(year: year, month: month, day: day, imageManager: imageManager)
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    // MARK: - Lifecycle
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        collectionView.register(DetailCell.self, forCellWithReuseIdentifier: "DetailCell")
+        collectionView.delegate = self
+        collectionView.dataSource = self
+    }
+    
+    // MARK: - UI Setup
+    override func configureHierarchy() {
+        view.addSubview(navigationBarView)
+        view.addSubview(symptomNameLabel)
+        view.addSubview(severityIndicator)
+        severityIndicator.addSubview(severityLabel)
+        view.addSubview(collectionView)
+        view.addSubview(pageControl)
+        view.addSubview(dateLabel)
+        view.addSubview(shareButton)
+        view.addSubview(deleteButton)
+        view.addSubview(notesLabel)
+        view.addSubview(loadingIndicator)
+    }
+    
+    override func configureLayout() {
+        navigationBarView.snp.makeConstraints { make in
+            make.top.equalTo(view.safeAreaLayoutGuide.snp.top)
+            make.leading.trailing.equalToSuperview()
+            make.height.equalTo(50)
+        }
+        
+        symptomNameLabel.snp.makeConstraints { make in
+            make.top.equalTo(navigationBarView.snp.bottom).offset(10)
+            make.leading.trailing.equalToSuperview().inset(DesignSystem.Layout.standardMargin)
+            make.height.equalTo(30)
+        }
+        
+        severityIndicator.snp.makeConstraints { make in
+            make.top.equalTo(symptomNameLabel.snp.bottom).offset(8)
+            make.centerX.equalToSuperview()
+            make.width.equalTo(80)
+            make.height.equalTo(24)
+        }
+        
+        severityLabel.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+        
+        collectionView.snp.makeConstraints { make in
+            make.top.equalTo(severityIndicator.snp.bottom).offset(16)
+            make.leading.trailing.equalToSuperview()
+            make.height.equalTo(view.snp.width) // 정사각형 비율 유지
+        }
+        
+        pageControl.snp.makeConstraints { make in
+            make.centerX.equalToSuperview()
+            make.top.equalTo(collectionView.snp.bottom).offset(8)
+        }
+        
+        notesLabel.snp.makeConstraints { make in
+            make.top.equalTo(pageControl.snp.bottom).offset(DesignSystem.Layout.standardMargin)
+            make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
+            make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
+        }
+        
+        dateLabel.snp.makeConstraints { make in
+            make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
+            make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom).offset(-DesignSystem.Layout.standardMargin)
+        }
+        
+        deleteButton.snp.makeConstraints { make in
+            make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
+            make.centerY.equalTo(dateLabel)
+            make.width.height.equalTo(30)
+        }
+        
+        shareButton.snp.makeConstraints { make in
+            make.trailing.equalTo(deleteButton.snp.leading).offset(-DesignSystem.Layout.standardMargin)
+            make.centerY.equalTo(dateLabel)
+            make.width.height.equalTo(30)
+        }
+        
+        loadingIndicator.snp.makeConstraints { make in
+            make.center.equalTo(collectionView)
+        }
+    }
+    
+    override func configureView() {
+        view.backgroundColor = .white
+        navigationBarView.configure(title: "증상 상세", leftButtonType: .back)
+    }
+    
+    // MARK: - Binding
     override func bind() {
         let input = SymptomDetailViewModel.Input(
             viewDidLoad: Observable.just(()),
@@ -423,52 +423,52 @@ final class SymptomDetailViewController: BaseViewController {
             })
             .disposed(by: disposeBag)
     }
-  
-  private func updateSeverityIndicator(severity: Int) {
-    switch severity {
-    case 1:
-      severityIndicator.backgroundColor = DesignSystem.Color.Status.negative1.inUIColor()
-      severityLabel.text = "일상적인 증상"
-    case 2:
-      severityIndicator.backgroundColor = DesignSystem.Color.Status.negative2.inUIColor()
-      severityLabel.text = "가벼운 증상"
-    case 3:
-      severityIndicator.backgroundColor = DesignSystem.Color.Status.negative3.inUIColor()
-      severityLabel.text = "중증 증상"
-    case 4:
-      severityIndicator.backgroundColor = DesignSystem.Color.Status.negative4.inUIColor()
-      severityLabel.text = "심한 증상"
-    case 5:
-      severityIndicator.backgroundColor = DesignSystem.Color.Status.negative5.inUIColor()
-      severityLabel.text = "응급 고위험"
-    default:
-      severityIndicator.backgroundColor = UIColor.lightGray
-      severityLabel.text = "없음"
+    
+    private func updateSeverityIndicator(severity: Int) {
+        switch severity {
+        case 1:
+            severityIndicator.backgroundColor = DesignSystem.Color.Status.negative1.inUIColor()
+            severityLabel.text = "일상적인 증상"
+        case 2:
+            severityIndicator.backgroundColor = DesignSystem.Color.Status.negative2.inUIColor()
+            severityLabel.text = "가벼운 증상"
+        case 3:
+            severityIndicator.backgroundColor = DesignSystem.Color.Status.negative3.inUIColor()
+            severityLabel.text = "중증 증상"
+        case 4:
+            severityIndicator.backgroundColor = DesignSystem.Color.Status.negative4.inUIColor()
+            severityLabel.text = "심한 증상"
+        case 5:
+            severityIndicator.backgroundColor = DesignSystem.Color.Status.negative5.inUIColor()
+            severityLabel.text = "응급 고위험"
+        default:
+            severityIndicator.backgroundColor = UIColor.lightGray
+            severityLabel.text = "없음"
+        }
     }
-  }
-  
-
+    
+    
 }
 
 // MARK: - UICollectionViewDataSource, UICollectionViewDelegateFlowLayout
 extension SymptomDetailViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
-  func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-    return loadedImages.count
-  }
-  
-  func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-    let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "DetailCell", for: indexPath) as! DetailCell
-    let image = loadedImages[indexPath.row]
-    if let image = image {
-      cell.imageView.image = image
-    } else {
-      cell.imageView.image = UIImage(systemName: "photo")
-      cell.imageView.tintColor = DesignSystem.Color.Tint.darkGray.inUIColor()
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return loadedImages.count
     }
-    return cell
-  }
-  
-  func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-    return CGSize(width: view.frame.width, height: collectionView.frame.height)
-  }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "DetailCell", for: indexPath) as! DetailCell
+        let image = loadedImages[indexPath.row]
+        if let image = image {
+            cell.imageView.image = image
+        } else {
+            cell.imageView.image = UIImage(systemName: "photo")
+            cell.imageView.tintColor = DesignSystem.Color.Tint.darkGray.inUIColor()
+        }
+        return cell
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        return CGSize(width: view.frame.width, height: collectionView.frame.height)
+    }
 }

@@ -789,15 +789,14 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
                         addSymptomIndicator(to: dayButton, severity: maxSeverity)
                     }
                 } else {
-                    // 사진 모드일 때: 항상 사진만 표시 (증상이 있더라도 사진 우선 표시)
+                    // 사진 모드일 때: 이미지 표시
                     if !dayCard.imageRecords.isEmpty,
                        let imageRecord = dayCard.imageRecords.first,
                        let thumbnailPath = imageRecord.thumbnailImagePath {
                         addImageIndicator(to: dayButton, imagePath: thumbnailPath)
                     }
                 }
-            }
-        }
+            }        }
     }
     
     private func preloadImages() {

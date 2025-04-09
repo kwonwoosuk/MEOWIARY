@@ -20,19 +20,17 @@ final class GalleryViewModel: BaseViewModel {
     private let imagesRelay = BehaviorRelay<[ImageData]>(value: [])
     private let allImagesRelay = BehaviorRelay<[ImageData]>(value: [])
     
-    // 현재 선택된 년/월
     private var currentYear: Int = Calendar.current.component(.year, from: Date())
     private var currentMonth: Int = Calendar.current.component(.month, from: Date())
     
-    // 이미지 데이터 타입 정의
     struct ImageData: Equatable {
         let id: String
         let originalPath: String
         let thumbnailPath: String
         let isFavorite: Bool
         let createdAt: Date
-        let dayCardId: String?  // 관련 DayCard ID
-        let notes: String?      // 노트 내용 추가
+        let dayCardId: String?
+        let notes: String?
         let year: Int
         let month: Int
         let day: Int
@@ -47,6 +45,7 @@ final class GalleryViewModel: BaseViewModel {
         let viewDidLoad: Observable<Void>
         let yearMonthSelected: Observable<(Int, Int)>
         let toggleFavoriteFilter: Observable<Bool>
+        let searchText: Observable<String> // Added search text input
     }
     
     struct Output {
@@ -56,7 +55,7 @@ final class GalleryViewModel: BaseViewModel {
     
     // MARK: - Transform
     func transform(input: Input) -> Output {
-        // 최초 이미지 데이터 로드
+        // Load initial data
         input.viewDidLoad
             .flatMap { [weak self] _ -> Observable<[ImageData]> in
                 guard let self = self else { return Observable.just([]) }
@@ -69,7 +68,7 @@ final class GalleryViewModel: BaseViewModel {
             })
             .disposed(by: disposeBag)
         
-        // 년월 선택 시 필터링
+        // Year/Month selection
         input.yearMonthSelected
             .subscribe(onNext: { [weak self] (year, month) in
                 guard let self = self else { return }
@@ -85,7 +84,7 @@ final class GalleryViewModel: BaseViewModel {
             })
             .disposed(by: disposeBag)
         
-        // 즐겨찾기 필터링
+        // Favorite filter
         input.toggleFavoriteFilter
             .withLatestFrom(allImagesRelay) { (isFilteringFavorites, allImages) -> [ImageData] in
                 if isFilteringFavorites {
@@ -99,7 +98,23 @@ final class GalleryViewModel: BaseViewModel {
             })
             .disposed(by: disposeBag)
         
-        // 빈 상태 감지
+        // Search filter
+        input.searchText
+            .withLatestFrom(allImagesRelay) { (searchText, allImages) -> [ImageData] in
+                if searchText.isEmpty {
+                    return allImages
+                } else {
+                    return allImages.filter {
+                        "\(($0.day))".contains(searchText) ||
+                        ($0.notes?.lowercased().contains(searchText.lowercased()) ?? false)
+                    }
+                }
+            }
+            .subscribe(onNext: { [weak self] filteredImages in
+                self?.imagesRelay.accept(filteredImages)
+            })
+            .disposed(by: disposeBag)
+        
         let isEmpty = imagesRelay.map { $0.isEmpty }
         
         return Output(
@@ -108,7 +123,6 @@ final class GalleryViewModel: BaseViewModel {
         )
     }
     
-    // 특정 년/월의 데이터만 불러오기
     func refreshData(year: Int = Calendar.current.component(.year, from: Date()),
                      month: Int = Calendar.current.component(.month, from: Date())) {
         self.currentYear = year
@@ -123,7 +137,6 @@ final class GalleryViewModel: BaseViewModel {
             .disposed(by: disposeBag)
     }
     
-    // MARK: - Methods
     private func loadImageData(year: Int, month: Int) -> Observable<[ImageData]> {
         return Observable.create { [weak self] observer in
             guard let self = self else {
@@ -132,24 +145,17 @@ final class GalleryViewModel: BaseViewModel {
                 return Disposables.create()
             }
             
-            // 모든 DayCard 가져오기
             let dayCards = self.dayCardRepository.getDayCards(year: year, month: month)
-            
-            // 날짜별 대표 이미지를 저장할 Dictionary
             var dayToImageData: [Int: ImageData] = [:]
             let groupedDayCards = Dictionary(grouping: dayCards, by: { $0.day })
             
             for (day, dayCardsInDay) in groupedDayCards.sorted(by: { $0.key > $1.key }) {
-                // 일상 기록 이미지만 표시 - 증상 기록은 제외
                 for dayCard in dayCardsInDay {
                     if !dayCard.imageRecords.isEmpty {
-                        // 이미지 레코드 처리
                         for imageRecord in dayCard.imageRecords {
                             if let originalPath = imageRecord.originalImagePath,
                                let thumbnailPath = imageRecord.thumbnailImagePath {
-                                
                                 let fileExists = self.imageManager.checkImageFileExists(path: originalPath)
-                                
                                 if fileExists {
                                     let imageData = ImageData(
                                         id: imageRecord.id,
@@ -163,15 +169,11 @@ final class GalleryViewModel: BaseViewModel {
                                         month: dayCard.month,
                                         day: dayCard.day
                                     )
-                                    
-                                    // 해당 날짜의 대표 이미지 선택 로직
                                     if let existing = dayToImageData[day] {
-                                        // 즐겨찾기된 이미지를 우선적으로 선택
                                         if imageRecord.isFavorite && !existing.isFavorite {
                                             dayToImageData[day] = imageData
                                         }
                                     } else {
-                                        // 첫 이미지는 무조건 등록
                                         dayToImageData[day] = imageData
                                     }
                                 }
@@ -181,9 +183,7 @@ final class GalleryViewModel: BaseViewModel {
                 }
             }
             
-            // Dictionary에서 대표 이미지만 추출하여 날짜 내림차순으로 정렬
             let imageDataList = Array(dayToImageData.values).sorted(by: { $0.day > $1.day })
-            
             observer.onNext(imageDataList)
             observer.onCompleted()
             
@@ -191,7 +191,6 @@ final class GalleryViewModel: BaseViewModel {
         }
     }
     
-    // 즐겨찾기 토글
     func toggleFavorite(imageId: String) -> Observable<Void> {
         return imageRecordRepository.toggleFavorite(imageId: imageId)
             .do(onNext: { [weak self] in
