@@ -445,10 +445,10 @@ final class HomeViewController: BaseViewController {
                 let isShowingSymptoms = self.viewModel.isShowingSymptomsSubject.value
                 
                 // 해당 날짜의 DayCard 조회
+                let dayCard = self.dayCardRepository.getDayCardForDate(year: year, month: month, day: day)
+                
                 if isShowingSymptoms {
-                    // 증상 모드일 때 - 증상 기록이 있는지 확인
-                    let dayCard = self.dayCardRepository.getDayCardForDate(year: year, month: month, day: day)
-                    // Realm의 List<Symptom>를 배열로 변환
+                    // 증상 모드일 때
                     let symptoms = dayCard?.symptoms.map { $0 } ?? []
                     
                     if !symptoms.isEmpty {
@@ -469,14 +469,14 @@ final class HomeViewController: BaseViewController {
                         self.present(recordVC, animated: true)
                     }
                 } else {
-                    // 일반 모드일 때 - 기존 로직 유지
-                    if let dayCard = self.dayCardRepository.getDayCardForDate(year: year, month: month, day: day),
-                       !dayCard.imageRecords.isEmpty { // 이미지가 존재하는 경우
-                        // 이미지가 있으면 DetailViewController로 이동
+                    // 일상 기록 모드일 때 - 이제 증상 기록이 있더라도 일상 기록 화면 표시
+                    if let dayCard = dayCard, !dayCard.imageRecords.isEmpty {
+                        // 일상 기록 이미지가 있으면 상세 화면으로 이동
                         let detailVC = DetailViewController(year: year, month: month, day: day, imageManager: ImageManager.shared)
                         detailVC.modalPresentationStyle = .fullScreen
                         self.present(detailVC, animated: true)
-                    } else { // DayCard가 없거나 이미지가 없는 경우
+                    } else {
+                        // 일상 기록이 없으면 새 기록 화면으로 이동
                         let diaryVC = DailyDiaryViewController(year: year, month: month, day: day)
                         diaryVC.modalPresentationStyle = .fullScreen
                         self.present(diaryVC, animated: true)

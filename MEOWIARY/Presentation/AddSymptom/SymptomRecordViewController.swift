@@ -448,6 +448,8 @@ final class SymptomRecordViewController: BaseViewController {
     }
     
     // MARK: - Binding
+    // SymptomRecordViewController.swift 내의 bind() 메서드 부분 수정
+    
     override func bind() {
         // 네비게이션 바 닫기 버튼 바인딩
         navigationBarView.leftButtonTapObservable
@@ -490,7 +492,8 @@ final class SymptomRecordViewController: BaseViewController {
             .do(onNext: { [weak self] value in
                 self?.severityRelay.accept(value)
                 
-                // 심각도에 따른 텍스트 변경
+                
+                // 심각도에 따른 색상 변경
                 let severityText: String
                 switch value {
                 case 1:
@@ -503,7 +506,7 @@ final class SymptomRecordViewController: BaseViewController {
                     severityText = "중증 증상"
                     self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative3.inUIColor()
                 case 4:
-                    severityText = "심한 증상"
+                    severityText = "심한증상"
                     self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative4.inUIColor()
                 case 5:
                     severityText = "응급 고위험"
@@ -513,7 +516,6 @@ final class SymptomRecordViewController: BaseViewController {
                     self?.severitySlider.thumbTintColor = DesignSystem.Color.Status.negative1.inUIColor()
                 }
                 
-                // 텍스트만 표시 (설명만)
                 self?.severityValueLabel.text = severityText
             })
             .subscribe()
@@ -571,7 +573,7 @@ final class SymptomRecordViewController: BaseViewController {
                 self?.showAlert(title: "저장 실패", message: error.localizedDescription)
             })
             .disposed(by: disposeBag)
-            
+        
         // 토스트 메시지 구독
         output.toastMessage
             .filter { !$0.isEmpty }

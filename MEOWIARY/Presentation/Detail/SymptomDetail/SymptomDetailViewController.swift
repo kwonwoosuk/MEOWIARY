@@ -234,14 +234,23 @@ final class SymptomDetailViewController: BaseViewController {
                 if let firstSymptom = symptoms.first {
                     self.symptomNameLabel.text = firstSymptom.name
                     self.updateSeverityIndicator(severity: firstSymptom.severity)
+                    
+                    // 증상 노트가 있으면 표시
+                    if let notes = firstSymptom.notes, !notes.isEmpty {
+                        self.notesLabel.text = notes
+                        self.notesLabel.isHidden = false
+                    } else {
+                        self.notesLabel.isHidden = true
+                    }
                 } else {
                     self.symptomNameLabel.text = "증상 없음"
                     self.updateSeverityIndicator(severity: 0)
+                    self.notesLabel.isHidden = true
                 }
             })
             .disposed(by: disposeBag)
         
-        // 이미지 데이터 바인딩
+        // 이미지 데이터 바인딩 - 이제 증상에 연결된 SymptomImage들에서 가져옴
         output.imageRecords
             .drive(onNext: { [weak self] imageRecords in
                 guard let self = self else { return }
@@ -260,11 +269,7 @@ final class SymptomDetailViewController: BaseViewController {
                 Task {
                     var images: [UIImage?] = []
                     for imageRecord in imageRecords {
-                        print("이미지 경로: \(String(describing: imageRecord.originalImagePath))")
                         let image = await self.viewModel.imageManager.loadOriginalImageAsync(from: imageRecord.originalImagePath)
-                        if image == nil {
-                            print("이미지 로드 실패: \(String(describing: imageRecord.originalImagePath))")
-                        }
                         images.append(image)
                     }
                     
@@ -275,11 +280,11 @@ final class SymptomDetailViewController: BaseViewController {
                         self.collectionView.isHidden = false
                         self.loadingIndicator.stopAnimating()
                         
-                        // 이미지가 없는 경우 알림 표시
-                        if images.allSatisfy({ $0 == nil }) && !images.isEmpty {
-                            let alert = UIAlertController(title: "오류", message: "이미지를 로드할 수 없습니다.", preferredStyle: .alert)
-                            alert.addAction(UIAlertAction(title: "확인", style: .default, handler: nil))
-                            self.present(alert, animated: true)
+                        // 이미지가 없는 경우 처리
+                        if images.isEmpty {
+                            self.pageControl.isHidden = true
+                        } else if images.allSatisfy({ $0 == nil }) && !images.isEmpty {
+                            self.showToast(message: "이미지를 로드할 수 없습니다")
                         }
                     }
                 }
@@ -306,18 +311,14 @@ final class SymptomDetailViewController: BaseViewController {
                 if let symptom = symptom {
                     self?.symptomNameLabel.text = symptom.name
                     self?.updateSeverityIndicator(severity: symptom.severity)
-                }
-            })
-            .disposed(by: disposeBag)
-        
-        // 노트 텍스트 바인딩
-        output.notesText
-            .drive(onNext: { [weak self] notes in
-                if let notes = notes, !notes.isEmpty {
-                    self?.notesLabel.text = notes
-                    self?.notesLabel.isHidden = false
-                } else {
-                    self?.notesLabel.isHidden = true
+                    
+                    // 증상 노트 업데이트
+                    if let notes = symptom.notes, !notes.isEmpty {
+                        self?.notesLabel.text = notes
+                        self?.notesLabel.isHidden = false
+                    } else {
+                        self?.notesLabel.isHidden = true
+                    }
                 }
             })
             .disposed(by: disposeBag)
@@ -334,8 +335,7 @@ final class SymptomDetailViewController: BaseViewController {
             .drive(onNext: { [weak self] imagePaths in
                 guard let self = self else { return }
                 
-                // imagePaths는 ViewModel에서 전달받은 이미지 경로 배열 (안전하게 복사된 값)
-                // 각 경로에 대해 캐시 비우기
+                // 이미지 캐시 비우기
                 for (originalPath, thumbnailPath) in imagePaths {
                     if let path = originalPath {
                         ImageManager.shared.clearImageCache(for: path)
@@ -345,7 +345,7 @@ final class SymptomDetailViewController: BaseViewController {
                     }
                 }
                 
-                // 삭제 성공 시 알림 발송 (추가 정보 포함)
+                // 삭제 성공 시 알림 발송
                 NotificationCenter.default.post(
                     name: Notification.Name(DayCardDeletedNotification),
                     object: nil,
@@ -353,14 +353,15 @@ final class SymptomDetailViewController: BaseViewController {
                         "year": self.viewModel.year,
                         "month": self.viewModel.month,
                         "day": self.viewModel.day,
-                        "forceReload": true
+                        "forceReload": true,
+                        "isSymptom": true
                     ]
                 )
                 
                 // 토스트 메시지 표시
                 self.showToast(message: "삭제가 완료되었습니다")
                 
-                // 콜백 호출 및 화면 닫기 - 약간 지연시켜 토스트 메시지 보이도록
+                // 콜백 호출 및 화면 닫기
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.onDelete?()
                     self.dismiss(animated: true)
@@ -408,13 +409,13 @@ final class SymptomDetailViewController: BaseViewController {
                 alert.addAction(UIAlertAction(title: "삭제", style: .destructive) { [weak self] _ in
                     guard let self = self else { return }
                     
-                    // 중요: 삭제 전에 필요한 이미지 경로 정보 먼저 복사
+                    // 삭제 전에 필요한 이미지 경로 정보 먼저 복사
                     let imagePaths = self.viewModel.preparePathsForDeletion()
                     
                     // 로딩 표시 시작
                     self.loadingIndicator.startAnimating()
                     
-                    // ViewModel의 삭제 로직 실행
+                    // 삭제 로직 실행
                     output.deleteConfirmed.onNext(())
                 })
                 

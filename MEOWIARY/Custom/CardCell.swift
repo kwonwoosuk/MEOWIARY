@@ -377,10 +377,6 @@ final class CardCell: UICollectionViewCell {
     }
     
     func createCalendarGrid(with dayCardData: [Int: DayCard] = [:]) {
-        // 기존 그리드 초기화 - 모든 기존 버튼 제거
-        for subview in calendarGridView.subviews {
-            subview.removeFromSuperview()
-        }
         
         let calendar = Calendar.current
         
@@ -441,31 +437,21 @@ final class CardCell: UICollectionViewCell {
                 addTodayIndicator(to: dayButton)
             }
             
-            // 중요: 모드에 따라 다른 표시 방식 적용
             if let dayCard = dayCardData[day] {
-                if isShowingSymptoms { // 증상 모드
-                    // 증상이 있는 경우에만 표시
+                if isShowingSymptoms {
+                    // 증상 모드일 때: 증상 심각도에 따른 색상 표시
                     if !dayCard.symptoms.isEmpty {
                         let maxSeverity = dayCard.symptoms.max { $0.severity < $1.severity }?.severity ?? 1
                         addSymptomIndicator(to: dayButton, severity: maxSeverity)
-                    } else {
-                        // 증상이 없는 경우 표시 초기화
-                        resetButtonDisplay(dayButton)
                     }
-                } else { // 사진 모드
-                    // 이미지가 있는 경우에만 표시
+                } else {
+                    // 사진 모드일 때: 항상 사진만 표시 (증상이 있더라도 사진 우선 표시)
                     if !dayCard.imageRecords.isEmpty,
                        let imageRecord = dayCard.imageRecords.first,
                        let thumbnailPath = imageRecord.thumbnailImagePath {
                         addImageIndicator(to: dayButton, imagePath: thumbnailPath)
-                    } else {
-                        // 이미지가 없는 경우 표시 초기화
-                        resetButtonDisplay(dayButton)
                     }
                 }
-            } else {
-                // 해당 날짜에 데이터가 없는 경우 표시 초기화
-                resetButtonDisplay(dayButton)
             }
         }
     }

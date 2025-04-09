@@ -20,7 +20,6 @@ final class SymptomDetailViewModel: BaseViewModel {
     let imageManager: ImageManager
     private let symptomRepository = SymptomRepository()
     private let dayCardRepository = DayCardRepository()
-    private let imageRecordRepository = ImageRecordRepository()
     let symptomsRelay = BehaviorRelay<[Symptom]>(value: [])
     let imageRecordsRelay = BehaviorRelay<[ImageRecord]>(value: [])
     private let currentIndexRelay = BehaviorRelay<Int>(value: 0)
@@ -118,52 +117,36 @@ final class SymptomDetailViewModel: BaseViewModel {
         )
     }
     
-    // 증상 삭제 메서드
+    // 증상 삭제 메서드 - 별도 증상 이미지 테이블 사용
     func deleteCurrentSymptoms() -> Observable<Void> {
         let symptoms = symptomsRelay.value
         if symptoms.isEmpty {
             return Observable.error(NSError(domain: "SymptomDetailViewModel",
-                                           code: -1,
-                                           userInfo: [NSLocalizedDescriptionKey: "삭제할 증상을 찾을 수 없습니다"]))
+                                          code: -1,
+                                          userInfo: [NSLocalizedDescriptionKey: "삭제할 증상을 찾을 수 없습니다"]))
         }
         
         // 해당 날짜의 DayCard 가져오기
         guard let dayCard = dayCardRepository.getDayCardForDate(year: year, month: month, day: day) else {
             return Observable.error(NSError(domain: "SymptomDetailViewModel",
-                                           code: -2,
-                                           userInfo: [NSLocalizedDescriptionKey: "DayCard를 찾을 수 없습니다"]))
+                                          code: -2,
+                                          userInfo: [NSLocalizedDescriptionKey: "DayCard를 찾을 수 없습니다"]))
         }
         
-        // 증상 삭제
+        // 증상 삭제 - 각 증상 삭제 시 증상 이미지도 함께 삭제
         let deleteSymptoms = Observable.merge(
             symptoms.map { symptom in
                 self.symptomRepository.deleteSymptom(symptom)
             }
         )
         
-        // 이미지 삭제
-        let imageRecords = Array(dayCard.imageRecords)
-        let deleteImages = Observable.merge(
-            imageRecords.map { imageRecord in
-                self.imageManager.deleteImage(imageRecord: imageRecord)
-            }
-        )
-        
-        // 증상과 이미지를 순차적으로 삭제
         return deleteSymptoms
             .toArray()
             .asObservable()
+            .map { _ in () }
             .flatMap { _ -> Observable<Void> in
-                // 증상 삭제 후 이미지 삭제
-                return deleteImages
-                    .toArray()
-                    .asObservable()
-                    .flatMap { _ -> Observable<Void> in
-                        // DayCard 삭제 (증상과 이미지가 모두 삭제되었으므로)
-                        return self.dayCardRepository.deleteDayCardsByIDs([dayCard.id])
-                    }
-            }
-            .flatMap { _ -> Observable<Void> in
+                // 추가 정리 작업이 필요하면 여기서 수행
+                
                 // 삭제 후 알림 발송
                 NotificationCenter.default.post(
                     name: Notification.Name(DayCardDeletedNotification),
@@ -186,18 +169,38 @@ final class SymptomDetailViewModel: BaseViewModel {
         let symptoms = symptomRepository.getSymptoms(year: year, month: month, day: day)
         symptomsRelay.accept(symptoms)
         
-        // 해당 날짜의 DayCard 로드하여 이미지와 노트 정보 추출
+        // 증상 이미지를 ImageRecord 형식으로 변환하여 UI에 사용
+        var imageRecords: [ImageRecord] = []
+        
+        for symptom in symptoms {
+            for symptomImage in symptom.symptomImages {
+                let imageRecord = ImageRecord()
+                imageRecord.id = symptomImage.id
+                imageRecord.originalImagePath = symptomImage.originalImagePath
+                imageRecord.thumbnailImagePath = symptomImage.thumbnailImagePath
+                imageRecord.createdAt = symptomImage.createdAt
+                imageRecords.append(imageRecord)
+            }
+        }
+        
+        imageRecordsRelay.accept(imageRecords)
+        
+        // DayCard의 노트 정보가 있다면 로드
         if let dayCard = dayCardRepository.getDayCardForDate(year: year, month: month, day: day) {
-            imageRecordsRelay.accept(Array(dayCard.imageRecords))
             notesRelay.accept(dayCard.notes)
         }
     }
     
     func preparePathsForDeletion() -> [(String?, String?)] {
-        // Realm 객체가 삭제되기 전에 필요한 경로 정보를 순수 Swift 타입으로 복사
-        let pathPairs = imageRecordsRelay.value.map { record in
-            return (record.originalImagePath, record.thumbnailImagePath)
+        // 모든 증상 이미지 경로 정보 수집
+        var allPaths: [(String?, String?)] = []
+        
+        for symptom in symptomsRelay.value {
+            for symptomImage in symptom.symptomImages {
+                allPaths.append((symptomImage.originalImagePath, symptomImage.thumbnailImagePath))
+            }
         }
-        return pathPairs
+        
+        return allPaths
     }
 }

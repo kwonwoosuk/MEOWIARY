@@ -14,8 +14,8 @@ class SymptomRecordViewModel: BaseViewModel {
     
     var disposeBag = DisposeBag()
     private let imageManager = ImageManager.shared
-    private let imageRecordRepository = ImageRecordRepository()
     private let symptomRepository = SymptomRepository()
+    private let symptomImageRepository = SymptomImageRepository() // 새로 추가
     private var currentDate = Date()
     private let toastMessageRelay = PublishRelay<String>()
     
@@ -94,85 +94,94 @@ class SymptomRecordViewModel: BaseViewModel {
                 // 새 증상 객체 생성
                 let symptom = Symptom(name: name, description: notes, severity: severity)
                 
-                let saveOperation: Observable<Void>
-                
+                // 이미지가 없는 경우와 있는 경우 처리 분리
                 if selectedImages.isEmpty {
                     // 이미지 없이 증상만 저장
-                    saveOperation = self.symptomRepository.saveSymptom(symptom, for: self.currentDate)
+                    return self.symptomRepository.saveSymptom(symptom, for: self.currentDate)
                         .map { _ in () }
-                } else {
-                    // 이미지와 함께 증상 저장
-                    saveOperation = Observable.create { observer in
-                        // 먼저 증상 저장
-                        self.symptomRepository.saveSymptom(symptom, for: self.currentDate)
-                            .flatMap { savedSymptom -> Observable<Void> in
-                                // 이미지 저장
-                                let imageRecordObservables = selectedImages.map { image in
-                                    self.imageManager.saveImage(image)
-                                        .flatMap { imageRecord in
-                                            self.imageRecordRepository.saveImageRecord(imageRecord)
-                                        }
-                                }
+                        .do(
+                            onNext: { [weak self] _ in
+                                guard let self = self else { return }
+                                isLoadingRelay.accept(false)
+                                saveSuccessRelay.accept(())
                                 
-                                return Observable.zip(imageRecordObservables)
-                                    .flatMap { imageRecords -> Observable<Void> in
-                                        // 날짜로 DayCard 검색
-                                        let calendar = Calendar.current
-                                        let year = calendar.component(.year, from: self.currentDate)
-                                        let month = calendar.component(.month, from: self.currentDate)
-                                        let day = calendar.component(.day, from: self.currentDate)
-                                        
-                                        if let dayCard = self.symptomRepository.dayCardRepository.getDayCardForDate(year: year, month: month, day: day) {
-                                            return self.symptomRepository.dayCardRepository.addImageRecord(imageRecords, to: dayCard)
-                                        } else {
-                                            return Observable.error(NSError(domain: "SymptomRecordViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "DayCard를 찾을 수 없습니다"]))
-                                        }
+                                // 증상 저장 성공 알림 발송
+                                let calendar = Calendar.current
+                                let year = calendar.component(.year, from: self.currentDate)
+                                let month = calendar.component(.month, from: self.currentDate)
+                                let day = calendar.component(.day, from: self.currentDate)
+                                
+                                NotificationCenter.default.post(
+                                    name: Notification.Name(DayCardUpdatedNotification),
+                                    object: nil,
+                                    userInfo: [
+                                        "year": year,
+                                        "month": month,
+                                        "day": day,
+                                        "isSymptom": true
+                                    ]
+                                )
+                            },
+                            onError: { error in
+                                isLoadingRelay.accept(false)
+                                saveErrorRelay.accept(error)
+                            }
+                        )
+                } else {
+                    // 이미지가 있는 경우: 이미지 저장 후 증상 저장
+                    return self.symptomRepository.saveSymptom(symptom, for: self.currentDate)
+                        .flatMap { savedSymptom -> Observable<Void> in
+                            // 각 이미지를 순차적으로 처리
+                            let imageObservables = selectedImages.map { image -> Observable<Void> in
+                                // 이미지 저장 및 SymptomImage 생성
+                                return self.imageManager.saveImage(image)
+                                    .flatMap { imageRecord -> Observable<SymptomImage> in
+                                        let symptomImage = SymptomImage(
+                                            originalImagePath: imageRecord.originalImagePath ?? "",
+                                            thumbnailImagePath: imageRecord.thumbnailImagePath ?? ""
+                                        )
+                                        return self.symptomImageRepository.saveSymptomImage(symptomImage)
+                                    }
+                                    .flatMap { symptomImage -> Observable<Void> in
+                                        // 각 이미지를 증상과 연결
+                                        return self.symptomRepository.addSymptomImage(symptomImage, to: savedSymptom)
                                     }
                             }
-                            .subscribe(
-                                onNext: {
-                                    observer.onNext(())
-                                    observer.onCompleted()
-                                },
-                                onError: { error in
-                                    observer.onError(error)
-                                }
-                            )
-                            .disposed(by: self.disposeBag)
-                        
-                        return Disposables.create()
-                    }
-                }
-                
-                return saveOperation
-                    .do(
-                        onNext: { _ in
-                            isLoadingRelay.accept(false)
-                            saveSuccessRelay.accept(())
                             
-                            // 저장 성공 시 알림 발송
-                            let calendar = Calendar.current
-                            let year = calendar.component(.year, from: self.currentDate)
-                            let month = calendar.component(.month, from: self.currentDate)
-                            let day = calendar.component(.day, from: self.currentDate)
-                            
-                            // 변경된 날짜 정보와 함께 알림 발송 (증상 기록 플래그 추가)
-                            NotificationCenter.default.post(
-                                name: Notification.Name(DayCardUpdatedNotification),
-                                object: nil,
-                                userInfo: [
-                                    "year": year,
-                                    "month": month,
-                                    "day": day,
-                                    "isSymptom": true // 증상 기록임을 표시
-                                ]
-                            )
-                        },
-                        onError: { error in
-                            isLoadingRelay.accept(false)
-                            saveErrorRelay.accept(error)
+                            // 모든 이미지 처리가 완료되면 완료 신호 보내기
+                            return Observable.concat(imageObservables)
+                                .takeLast(1)
+                                .map { _ in () }
                         }
-                    )
+                        .do(
+                            onNext: { [weak self] _ in
+                                guard let self = self else { return }
+                                isLoadingRelay.accept(false)
+                                saveSuccessRelay.accept(())
+                                
+                                // 증상 저장 성공 알림 발송
+                                let calendar = Calendar.current
+                                let year = calendar.component(.year, from: self.currentDate)
+                                let month = calendar.component(.month, from: self.currentDate)
+                                let day = calendar.component(.day, from: self.currentDate)
+                                
+                                NotificationCenter.default.post(
+                                    name: Notification.Name(DayCardUpdatedNotification),
+                                    object: nil,
+                                    userInfo: [
+                                        "year": year,
+                                        "month": month,
+                                        "day": day,
+                                        "isSymptom": true
+                                    ]
+                                )
+                            },
+                            onError: { error in
+                                isLoadingRelay.accept(false)
+                                saveErrorRelay.accept(error)
+                            }
+                        )
+                }
             }
             .subscribe(
                 onNext: { _ in print("증상 저장 성공") },

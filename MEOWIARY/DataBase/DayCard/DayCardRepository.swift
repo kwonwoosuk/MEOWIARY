@@ -106,7 +106,6 @@ class DayCardRepository: DayCardRepositoryProtocol {
         
         return result
     }
-    
   func getDayCardsWithImages() -> [DayCard] {
       let realm = getRealm()
       let results = realm.objects(DayCard.self)
@@ -276,6 +275,10 @@ class DayCardRepository: DayCardRepositoryProtocol {
             
             do {
                 try realm.write {
+                    // 먼저 Symptom 객체 저장
+                    realm.add(symptom, update: .modified)
+                    
+                    // 저장된 Symptom 객체를 DayCard에 연결
                     localDayCard.symptoms.append(symptom)
                 }
                 observer.onNext(())
@@ -292,7 +295,7 @@ class DayCardRepository: DayCardRepositoryProtocol {
         return Observable.create { observer in
             let realm = self.getRealm()
             
-            // 현재 스레드의 Realm에서 dayCard와 symptom 다시 가져오기
+            // 현재 스레드의 Realm에서 객체 가져오기
             guard let localDayCard = realm.object(ofType: DayCard.self, forPrimaryKey: dayCard.id),
                   let localSymptom = realm.object(ofType: Symptom.self, forPrimaryKey: symptom.id) else {
                 observer.onError(NSError(domain: "Objects not found", code: -1, userInfo: nil))
@@ -301,10 +304,27 @@ class DayCardRepository: DayCardRepositoryProtocol {
             
             do {
                 try realm.write {
+                    // 증상 이미지 정보 복사
+                    let symptomImages = Array(localSymptom.symptomImages)
+                    let imagePaths: [(String?, String?)] = symptomImages.map {
+                        ($0.originalImagePath, $0.thumbnailImagePath)
+                    }
+                    
+                    // DayCard에서 증상 참조 제거
                     if let index = localDayCard.symptoms.index(of: localSymptom) {
                         localDayCard.symptoms.remove(at: index)
                     }
+                    
+                    // 증상 이미지 삭제
+                    realm.delete(symptomImages)
+                    
+                    // 증상 객체 삭제
+                    realm.delete(localSymptom)
                 }
+                
+                // 파일 시스템에서 이미지 파일 삭제
+                // (필요한 경우 여기서 이미지 파일 삭제 로직 추가)
+                
                 observer.onNext(())
                 observer.onCompleted()
             } catch {

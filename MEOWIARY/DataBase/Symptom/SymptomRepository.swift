@@ -17,11 +17,13 @@ protocol SymptomRepositoryProtocol {
     func getSymptomDays(year: Int, month: Int) -> [Int]
     func deleteSymptom(_ symptom: Symptom) -> Observable<Void>
     func updateSymptom(_ symptom: Symptom) -> Observable<Symptom>
+    func addSymptomImage(_ symptomImage: SymptomImage, to symptom: Symptom) -> Observable<Void>
 }
 
 class SymptomRepository: SymptomRepositoryProtocol {
     
     let dayCardRepository = DayCardRepository()
+    let symptomImageRepository = SymptomImageRepository()
     
     // 속성으로 저장하지 않고 필요할 때마다 새로운 Realm 인스턴스 생성
     private func getRealm() -> Realm {
@@ -97,6 +99,41 @@ class SymptomRepository: SymptomRepositoryProtocol {
             return Disposables.create()
         }
     }
+
+    // 증상 이미지 추가
+    func addSymptomImage(_ symptomImage: SymptomImage, to symptom: Symptom) -> Observable<Void> {
+        return Observable.create { [weak self] observer in
+            guard let self = self else {
+                observer.onError(NSError(domain: "SymptomRepository", code: -1, userInfo: nil))
+                return Disposables.create()
+            }
+            
+            let realm = self.getRealm()
+            
+            // 현재 스레드의 Realm에서 Symptom 객체 가져오기
+            guard let localSymptom = realm.object(ofType: Symptom.self, forPrimaryKey: symptom.id) else {
+                observer.onError(NSError(domain: "SymptomRepository", code: -2, userInfo: [NSLocalizedDescriptionKey: "Symptom을 찾을 수 없음"]))
+                return Disposables.create()
+            }
+            
+            do {
+                try realm.write {
+                    // 이미지 먼저 저장
+                    realm.add(symptomImage, update: .modified)
+                    
+                    // 증상에 이미지 연결
+                    localSymptom.symptomImages.append(symptomImage)
+                }
+                observer.onNext(())
+                observer.onCompleted()
+            } catch {
+                observer.onError(error)
+            }
+            
+            return Disposables.create()
+        }
+    }
+    
     // 특정 날짜의 증상 목록 조회
     func getSymptoms(for date: Date) -> [Symptom] {
         let calendar = Calendar.current
@@ -132,7 +169,7 @@ class SymptomRepository: SymptomRepositoryProtocol {
         return dayCardRepository.getDaysWithSymptoms(year: year, month: month)
     }
     
-    // 증상 삭제
+    // 증상 삭제 - 증상 이미지도 함께 삭제
     func deleteSymptom(_ symptom: Symptom) -> Observable<Void> {
         return Observable.create { [weak self] observer in
             guard let self = self else {
@@ -151,6 +188,12 @@ class SymptomRepository: SymptomRepositoryProtocol {
             let dayCards = realm.objects(DayCard.self).filter("ANY symptoms.id == %@", symptom.id)
             var year = 0, month = 0, day = 0
             
+            // 증상 이미지 정보 미리 복사
+            let symptomImages = Array(localSymptom.symptomImages)
+            let imagePaths: [(String?, String?)] = symptomImages.map {
+                ($0.originalImagePath, $0.thumbnailImagePath)
+            }
+            
             do {
                 try realm.write {
                     // DayCard에서 증상 참조 제거
@@ -164,8 +207,21 @@ class SymptomRepository: SymptomRepositoryProtocol {
                         }
                     }
                     
+                    // 증상 이미지 제거
+                    realm.delete(symptomImages)
+                    
                     // 증상 자체 삭제
                     realm.delete(localSymptom)
+                }
+                
+                // 파일 시스템에서 이미지 파일 삭제
+                for (originalPath, thumbnailPath) in imagePaths {
+                    if let path = originalPath {
+                        ImageManager.shared.deleteImageFile(path: path, isOriginal: true)
+                    }
+                    if let path = thumbnailPath {
+                        ImageManager.shared.deleteImageFile(path: path, isOriginal: false)
+                    }
                 }
                 
                 // 변경 알림 발송
