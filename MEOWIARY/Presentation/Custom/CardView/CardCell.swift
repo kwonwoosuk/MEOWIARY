@@ -1066,75 +1066,95 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
     
     // 뒤로 플립 애니메이션 개선
     func flipToCard(animated: Bool = true) {
-        // 이미 카드 상태면 무시
-        if !isFlipped {
-            return
-        }
-        
-        // 애니메이션 전 모드만 로드하고 가벼운 UI 준비
-        loadDisplayMode()
-        
-        // 애니메이션 속도에 영향을 주지 않도록 간단한 준비만 수행
-        if displayMode == .featureImage {
-            // 커스텀 이미지가 있는지만 확인하고 실제 로딩은 나중에
-            if hasCustomFeatureImage {
-                backgroundImageView.alpha = 1.0
-            } else {
-                backgroundImageView.alpha = 0.7
+            // 이미 카드 상태면 무시
+            if !isFlipped {
+                return
             }
-            // 일단 색상만 설정 (이미지는 나중에)
-            containerView.backgroundColor = UIColor.lightGray
-        } else {
-            // 색상 모드는 간단하게 즉시 적용
-            backgroundImageView.image = nil
-            backgroundImageView.alpha = 0.3
-            setMonthColor(month: month)
-        }
-        
-        if animated {
-            UIView.transition(
-                with: self.contentView,
-                duration: 0.4,
-                options: [.transitionFlipFromRight, .allowUserInteraction, .curveLinear],
-                animations: {
-                    self.calendarContainerView.isHidden = true
-                    self.containerView.isHidden = false
-                },
-                completion: { _ in
-                    self.isFlipped = false
-                    print("CardCell: \(self.month)월 카드 되돌리기 애니메이션 완료")
+            
+            // 애니메이션 전 모드 로드
+            loadDisplayMode()
+            
+            // 애니메이션 시작 전에 이미지 미리 로드
+            if displayMode == .featureImage {
+                var preloadedImage: UIImage? = nil
+                
+                // 이미지 미리 로드 (애니메이션 시작 전에)
+                if hasCustomFeatureImage {
+                    let fileManager = FileManager.default
+                    let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                    let filePath = documentsPath.appendingPathComponent(featureImageKey())
                     
-                    // 애니메이션 완료 후 무거운 이미지 로딩 작업 수행
-                    if self.displayMode == .featureImage {
-                        if self.hasCustomFeatureImage {
-                            self.loadCustomFeatureImage()
-                        } else {
-                            self.loadRandomMonthImage()
-                        }
+                    if fileManager.fileExists(atPath: filePath.path),
+                       let data = try? Data(contentsOf: filePath),
+                       let image = UIImage(data: data) {
+                        preloadedImage = image
+                        backgroundImageView.image = image
+                        backgroundImageView.alpha = 1.0
+                        containerView.backgroundColor = UIColor.clear
+                    }
+                } else if hasImagesForCurrentMonth() {
+                    // 랜덤 이미지 미리 로드
+                    let dayCardRepository = DayCardRepository()
+                    let dayCards = dayCardRepository.getDayCards(year: year, month: month)
+                    
+                    var allImageRecords: [ImageRecord] = []
+                    for dayCard in dayCards {
+                        allImageRecords.append(contentsOf: dayCard.imageRecords)
+                    }
+                    
+                    if let randomImage = allImageRecords.randomElement(),
+                       let imagePath = randomImage.originalImagePath,
+                       let image = ImageManager.shared.loadOriginalImage(from: imagePath) {
+                        preloadedImage = image
+                        backgroundImageView.image = image
+                        backgroundImageView.alpha = 1.0
+                        containerView.backgroundColor = UIColor.clear
                     }
                 }
-            )
-        } else {
-            // 애니메이션 없을 때는 바로 완료 처리
-            calendarContainerView.isHidden = true
-            containerView.isHidden = false
-            isFlipped = false
-            
-            // 이미지 로딩
-            if displayMode == .featureImage {
-                if hasCustomFeatureImage {
-                    loadCustomFeatureImage()
-                } else {
-                    loadRandomMonthImage()
+                
+                // 이미지 로드 실패 시 색상 모드로 폴백
+                if preloadedImage == nil {
+                    displayMode = .colorCard
+                    saveDisplayMode()
+                    backgroundImageView.image = nil
+                    backgroundImageView.alpha = 0.0
+                    setMonthColor(month: month)
                 }
+            } else {
+                // 색상 모드는 간단하게 즉시 적용
+                backgroundImageView.image = nil
+                backgroundImageView.alpha = 0.0
+                setMonthColor(month: month)
+            }
+            
+            if animated {
+                UIView.transition(
+                    with: self.contentView,
+                    duration: 0.4,
+                    options: [.transitionFlipFromRight, .allowUserInteraction, .curveLinear],
+                    animations: {
+                        self.calendarContainerView.isHidden = true
+                        self.containerView.isHidden = false
+                    },
+                    completion: { _ in
+                        self.isFlipped = false
+                        print("CardCell: \(self.month)월 카드 되돌리기 애니메이션 완료")
+                    }
+                )
+            } else {
+                // 애니메이션 없을 때는 바로 완료 처리
+                calendarContainerView.isHidden = true
+                containerView.isHidden = false
+                isFlipped = false
+            }
+            
+            // 디버그 로그
+            if animated {
+                print("CardCell: \(self.month)월 카드를 원래대로 되돌리기 시작 (태그: \(self.tag))")
             }
         }
-        
-        // 디버그 로그
-        if animated {
-            print("CardCell: \(month)월 카드를 원래대로 되돌리기 시작 (태그: \(self.tag))")
-        }
-    }    // MARK: - Helper Methods
+    
+    // MARK: - Helper Methods
     private func daysInMonth(month: Int, year: Int) -> Int {
         let calendar = Calendar.current
         
