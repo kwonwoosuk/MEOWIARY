@@ -135,12 +135,12 @@ final class GalleryViewModel: BaseViewModel {
             // 모든 DayCard 가져오기
             let dayCards = self.dayCardRepository.getDayCards(year: year, month: month)
             
-            var imageDataList: [ImageData] = []
+            // 날짜별 대표 이미지를 저장할 Dictionary
+            var dayToImageData: [Int: ImageData] = [:]
             let groupedDayCards = Dictionary(grouping: dayCards, by: { $0.day })
             
             for (day, dayCardsInDay) in groupedDayCards.sorted(by: { $0.key > $1.key }) {
                 // 일상 기록 이미지만 표시 - 증상 기록은 제외
-                // 각 날짜의 DayCard들 중 일상 기록 이미지가 있는 것만 처리
                 for dayCard in dayCardsInDay {
                     if !dayCard.imageRecords.isEmpty {
                         // 이미지 레코드 처리
@@ -163,13 +163,26 @@ final class GalleryViewModel: BaseViewModel {
                                         month: dayCard.month,
                                         day: dayCard.day
                                     )
-                                    imageDataList.append(imageData)
+                                    
+                                    // 해당 날짜의 대표 이미지 선택 로직
+                                    if let existing = dayToImageData[day] {
+                                        // 즐겨찾기된 이미지를 우선적으로 선택
+                                        if imageRecord.isFavorite && !existing.isFavorite {
+                                            dayToImageData[day] = imageData
+                                        }
+                                    } else {
+                                        // 첫 이미지는 무조건 등록
+                                        dayToImageData[day] = imageData
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+            
+            // Dictionary에서 대표 이미지만 추출하여 날짜 내림차순으로 정렬
+            let imageDataList = Array(dayToImageData.values).sorted(by: { $0.day > $1.day })
             
             observer.onNext(imageDataList)
             observer.onCompleted()

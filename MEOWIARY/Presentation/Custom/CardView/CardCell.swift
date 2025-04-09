@@ -577,7 +577,7 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
             } else {
                 // 랜덤 이미지 또는 기본 이미지 로드
                 loadRandomMonthImage()
-                backgroundImageView.alpha = 0.7
+                backgroundImageView.alpha = 1.0
             }
         }
     }
