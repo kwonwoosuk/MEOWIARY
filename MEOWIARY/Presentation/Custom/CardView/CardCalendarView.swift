@@ -29,6 +29,8 @@ final class CardCalendarView: BaseView {
         }
     }
     
+    
+    
     // MARK: - UI Components
     private let cardCollectionView: UICollectionView = {
         // 수평 레이아웃으로 설정
@@ -66,6 +68,19 @@ final class CardCalendarView: BaseView {
     
     override func configureView() {
         setupCollectionView()
+        NotificationCenter.default.rx.notification(Notification.Name(ImageDeletedNotification))
+                .subscribe(onNext: { [weak self] notification in
+                    guard let self = self else { return }
+                    
+                    // 현재 보이는 월 셀들 찾아서 업데이트
+                    for i in 0..<12 {
+                        if let cell = self.getCellForIndex(i) {
+                            // 셀이 이미지 모드이고 해당 월에 이미지가 없다면 모드 변경
+                            cell.checkAndUpdateDisplayMode()
+                        }
+                    }
+                })
+                .disposed(by: disposeBag)
     }
     
     private func setupCollectionView() {

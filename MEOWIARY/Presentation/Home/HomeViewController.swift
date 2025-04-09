@@ -238,7 +238,13 @@ final class HomeViewController: BaseViewController {
         let yearPrevTapEvent = PublishSubject<Void>()
         let yearNextTapEvent = PublishSubject<Void>()
         let toggleViewTapEvent = PublishSubject<Void>()
-        
+        NotificationCenter.default.rx.notification(Notification.Name(ImageDeletedNotification))
+               .subscribe(onNext: { [weak self] _ in
+                   guard let self = self else { return }
+                   // 현재 표시 중인 카드 월별 상태 확인 및 업데이트
+                   self.cardCalendarView.refreshVisibleCells()
+               })
+               .disposed(by: disposeBag)
         
         recent24hButton.rx.tap
             .subscribe(onNext: { [weak self] in

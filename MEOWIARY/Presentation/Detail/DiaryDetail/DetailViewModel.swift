@@ -149,6 +149,13 @@ final class DetailViewModel: BaseViewModel {
         
         // ID를 기반으로 삭제 요청
         return dayCardRepository.deleteDayCardsByIDs(dayCardIDs)
+            .do(onNext: { _ in
+                        // 삭제 성공 시 알림 발송
+                        NotificationCenter.default.post(
+                            name: Notification.Name(ImageDeletedNotification),
+                            object: nil
+                        )
+                    })
     }
     // MARK: - Private Methods
     private func loadData() {

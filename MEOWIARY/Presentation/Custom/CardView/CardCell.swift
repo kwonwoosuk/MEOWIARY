@@ -544,7 +544,19 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
     }
     
     func setDisplayMode(_ mode: CardDisplayMode) {
-        displayMode = mode
+        // 이미지 모드로 변경하려는데 이미지가 없는 경우
+        if mode == .featureImage && !hasImagesForCurrentMonth() && !hasCustomFeatureImage {
+            // 이미지가 없으면 카드 모드로 강제 설정
+            displayMode = .colorCard
+            // 사용자에게 피드백 제공
+            if let viewController = findViewController() {
+                viewController.showToast(message: "\(month)월에 저장된 이미지가 없습니다.")
+            }
+        } else {
+            // 정상적으로 요청된 모드로 설정
+            displayMode = mode
+        }
+        
         saveDisplayMode()
         updateCardAppearance()
     }
@@ -567,52 +579,76 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
             // 기본 색상 모드
             backgroundImageView.image = nil
             backgroundImageView.alpha = 0.3
-            setMonthColor(month: month) // 기존 월별 색상 설정 메서드 호출
+            setMonthColor(month: month)
             
         case .featureImage:
+            // 이미지가 있는지 다시 확인
+            if !hasImagesForCurrentMonth() && !hasCustomFeatureImage {
+                // 이미지가 없으면 색상 모드로 강제 전환
+                displayMode = .colorCard
+                saveDisplayMode()
+                
+                // 색상 모드 적용
+                backgroundImageView.image = nil
+                backgroundImageView.alpha = 0.3
+                setMonthColor(month: month)
+                return
+            }
+            
             // 대표 이미지 모드
             if hasCustomFeatureImage {
                 // 사용자가 설정한 대표 이미지 로드
                 loadCustomFeatureImage()
                 backgroundImageView.alpha = 1.0
             } else {
-                // 랜덤 이미지 또는 기본 이미지 로드
+                // 랜덤 이미지 로드
                 loadRandomMonthImage()
                 backgroundImageView.alpha = 1.0
             }
-            // 확실하게 이미지가 표시되도록 색상 초기화
-            containerView.backgroundColor = UIColor.clear
         }
     }
     
-    private func loadRandomMonthImage() {
-        // 플레이스홀더 이미지나 색상을 즉시 설정하여 첫 화면에서 딜레이 없애기
+    private func hasImagesForCurrentMonth() -> Bool {
+        let dayCardRepository = DayCardRepository()
+        let dayCards = dayCardRepository.getDayCards(year: year, month: month)
+        
+        // 모든 DayCard에서 이미지 레코드 확인
+        let hasImages = dayCards.contains { dayCard in
+            return !dayCard.imageRecords.isEmpty
+        }
+        
+        return hasImages
+    }
+    
+    private func loadRandomMonthImage() -> Bool {
+        // 플레이스홀더 색상 즉시 설정
         containerView.backgroundColor = DesignSystem.Color.Background.card.inUIColor()
         
-        // 백그라운드 스레드에서 이미지 로딩
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-            
-            let dayCardRepository = DayCardRepository()
-            let dayCards = dayCardRepository.getDayCards(year: self.year, month: self.month)
-            
-            var allImageRecords: [ImageRecord] = []
-            for dayCard in dayCards {
-                allImageRecords.append(contentsOf: dayCard.imageRecords)
+        let dayCardRepository = DayCardRepository()
+        let dayCards = dayCardRepository.getDayCards(year: year, month: month)
+        
+        var allImageRecords: [ImageRecord] = []
+        for dayCard in dayCards {
+            allImageRecords.append(contentsOf: dayCard.imageRecords)
+        }
+        
+        if let randomImage = allImageRecords.randomElement(),
+           let imagePath = randomImage.originalImagePath,
+           let image = ImageManager.shared.loadOriginalImage(from: imagePath) {
+            backgroundImageView.image = image
+            backgroundImageView.alpha = 0.7
+            containerView.backgroundColor = UIColor.clear
+            return true
+        } else {
+            // 이미지가 없는 경우 색상 모드로 전환하는 로직 추가
+            if displayMode == .featureImage {
+                displayMode = .colorCard
+                saveDisplayMode()
+                backgroundImageView.image = nil
+                backgroundImageView.alpha = 0.3
+                setMonthColor(month: month)
             }
-            
-            // 이미지 레코드가 있고 랜덤 선택이 가능하면 이미지 로드
-            if let randomImage = allImageRecords.randomElement(),
-               let imagePath = randomImage.originalImagePath,
-               let image = ImageManager.shared.loadOriginalImage(from: imagePath) {
-                
-                // UI 업데이트는 메인 스레드에서
-                DispatchQueue.main.async {
-                    self.backgroundImageView.image = image
-                    self.backgroundImageView.alpha = 0.7
-                    self.containerView.backgroundColor = UIColor.clear
-                }
-            }
+            return false
         }
     }
     
@@ -639,7 +675,7 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
     }
     
     // 사용자 정의 대표 이미지 로드
-    private func loadCustomFeatureImage() {
+    private func loadCustomFeatureImage() -> Bool {
         let fileManager = FileManager.default
         let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let filePath = documentsPath.appendingPathComponent(featureImageKey())
@@ -648,11 +684,16 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
            let data = try? Data(contentsOf: filePath),
            let image = UIImage(data: data) {
             backgroundImageView.image = image
-            backgroundImageView.alpha = 1.0 // 완전 불투명으로 설정
-            containerView.backgroundColor = UIColor.clear // 배경색 제거하여 이미지만 표시
+            backgroundImageView.alpha = 1.0
+            containerView.backgroundColor = UIColor.clear
+            return true
         } else {
-            // 이미지 로드 실패 시 랜덤 이미지 표시
-            loadRandomMonthImage()
+            // 커스텀 이미지가 없으면 hasCustomFeatureImage 플래그 업데이트
+            hasCustomFeatureImage = false
+            UserDefaults.standard.removeObject(forKey: "has_" + featureImageKey())
+            
+            // 랜덤 이미지 시도
+            return loadRandomMonthImage()
         }
     }
     
@@ -974,22 +1015,18 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
         )
     }
     
-    //    private func addSymptomIndicator(to button: UIButton) {
-    //        let isSmallScreen = UIScreen.main.bounds.height <= 667
-    //        let indicatorSize: CGFloat = isSmallScreen ? 16 : 20
-    //
-    //        let indicator = UIView()
-    //        indicator.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
-    //        indicator.layer.cornerRadius = indicatorSize / 2
-    //
-    //        button.addSubview(indicator)
-    //        indicator.center = CGPoint(x: button.frame.width / 2, y: button.frame.height / 2)
-    //        indicator.frame.size = CGSize(width: indicatorSize, height: indicatorSize)
-    //
-    //        // Bring the text to front
-    //        button.bringSubviewToFront(button.titleLabel!)
-    //    }
-    //
+    func checkAndUpdateDisplayMode() {
+        if displayMode == .featureImage {
+            // 이미지 존재 여부 확인
+            if !hasImagesForCurrentMonth() && !hasCustomFeatureImage {
+                // 이미지가 없으면 카드 모드로 강제 전환
+                displayMode = .colorCard
+                saveDisplayMode()
+                updateCardAppearance()
+            }
+        }
+    }
+    
     // MARK: - Flipping Methods
     func flipToCalendar(animated: Bool = true) {
         // 이미 뒤집힌 상태면 종료
