@@ -5,7 +5,7 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>앨범 접근권한을 설정해주세요. 앨범의 사진을 저장하려면 접근권한이 필요합니다</string>
 	<key>NSCameraUsageDescription</key>
-	<string>카메라 접근 권한을 설정해주세요. 사진을 찍으려면 접근권한이 필요합니다</string>
+	<string>카메라 접근 권한을 설정해주세요. 사진을 찍고 다이어리에 추가하려면 접근권한이 필요합니다</string>
 	<key>UIUserInterfaceStyle</key>
 	<string>Light</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
