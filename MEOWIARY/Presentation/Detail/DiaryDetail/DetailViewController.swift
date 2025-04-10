@@ -103,6 +103,10 @@ var dayCardRepository = DayCardRepository()
     collectionView.delegate = self
     collectionView.dataSource = self
   }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        viewModel.reloadData()
+    }
   
   // MARK: - UI Setup
   override func configureHierarchy() {

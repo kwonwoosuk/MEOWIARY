@@ -51,6 +51,10 @@ final class SymptomDetailViewModel: BaseViewModel {
         self.imageManager = imageManager
     }
     
+    func reloadData() {
+        loadData()
+    }
+    
     // MARK: - Transform
     func transform(input: Input) -> Output {
         // 데이터 로드

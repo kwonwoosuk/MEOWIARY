@@ -125,6 +125,11 @@ final class SymptomDetailViewController: BaseViewController {
         collectionView.dataSource = self
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        viewModel.reloadData()
+    }
+    
     // MARK: - UI Setup
     override func configureHierarchy() {
         view.addSubview(navigationBarView)
