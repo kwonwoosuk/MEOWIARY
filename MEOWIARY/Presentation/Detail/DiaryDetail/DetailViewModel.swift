@@ -132,6 +132,9 @@ final class DetailViewModel: BaseViewModel {
         )
     }
     
+    func getCurrentDayCard() -> DayCard? {
+        return dayCardRepository.getDayCardForDate(year: year, month: month, day: day)
+    }
     
     func deleteCurrentDayCards() -> Observable<Void> {
         // 현재 날짜의 DayCard ID들을 먼저 가져옵니다

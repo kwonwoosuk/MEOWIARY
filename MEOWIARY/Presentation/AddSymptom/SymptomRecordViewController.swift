@@ -21,6 +21,10 @@ final class SymptomRecordViewController: BaseViewController {
             updateImageViews()
         }
     }
+    // 수정 모드 관련 프로퍼티
+    private var isEditMode = false
+    private var editingSymptom: Symptom?
+    
     private let selectedImagesRelay = BehaviorRelay<[UIImage]>(value: [])
     private let severityRelay = BehaviorRelay<Int>(value: 1)
     
@@ -203,10 +207,87 @@ final class SymptomRecordViewController: BaseViewController {
     init(year: Int, month: Int, day: Int) {
         self.viewModel = SymptomRecordViewModel(year: year, month: month, day: day)
         super.init(nibName: nil, bundle: nil)
+        if isEditMode {
+               loadExistingData()
+           }
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    func configureForEdit(symptom: Symptom) {
+        isEditMode = true
+        editingSymptom = symptom
+        
+        // viewDidLoad 이후에 호출되면 즉시 데이터 로드
+        if isViewLoaded {
+            loadExistingData()
+        }
+    }
+    
+    private func loadExistingData() {
+        guard isEditMode, let symptom = editingSymptom else { return }
+        
+        // 네비게이션 타이틀 변경
+        navigationBarView.configure(title: "증상 수정", leftButtonType: .close)
+        
+        // 저장 버튼 텍스트 변경
+        saveButton.setTitle("수정 완료", for: .normal)
+        
+        // 증상명 설정
+        symptomNameTextField.text = symptom.name
+        
+        // 심각도 설정
+        severitySlider.value = Float(symptom.severity)
+        severityRelay.accept(symptom.severity)
+        
+        // 슬라이더 값에 따른 UI 업데이트
+        let severityText: String
+        switch symptom.severity {
+        case 1:
+            severityText = "일상적인 증상"
+            severitySlider.thumbTintColor = DesignSystem.Color.Status.negative1.inUIColor()
+        case 2:
+            severityText = "가벼운 증상"
+            severitySlider.thumbTintColor = DesignSystem.Color.Status.negative2.inUIColor()
+        case 3:
+            severityText = "중증 증상"
+            severitySlider.thumbTintColor = DesignSystem.Color.Status.negative3.inUIColor()
+        case 4:
+            severityText = "심한증상"
+            severitySlider.thumbTintColor = DesignSystem.Color.Status.negative4.inUIColor()
+        case 5:
+            severityText = "응급 고위험"
+            severitySlider.thumbTintColor = DesignSystem.Color.Status.negative5.inUIColor()
+        default:
+            severityText = "일상적인 증상"
+            severitySlider.thumbTintColor = DesignSystem.Color.Status.negative1.inUIColor()
+        }
+        severityValueLabel.text = severityText
+        
+        // 노트 설정
+        if let notes = symptom.notes {
+            notesTextView.text = notes
+            placeholderLabel.isHidden = true
+        }
+        
+        // 이미지 로드
+        let symptomImages = Array(symptom.symptomImages)
+        if !symptomImages.isEmpty {
+            var images: [UIImage] = []
+            for symImage in symptomImages {
+                if let path = symImage.originalImagePath,
+                   let image = ImageManager.shared.loadOriginalImage(from: path) {
+                    images.append(image)
+                }
+            }
+            
+            if !images.isEmpty {
+                selectedImages = images
+                selectedImagesRelay.accept(images)
+            }
+        }
     }
     
     // MARK: - UI Setup
@@ -523,13 +604,15 @@ final class SymptomRecordViewController: BaseViewController {
         
         // ViewModel과 바인딩
         let input = SymptomRecordViewModel.Input(
-            viewDidLoad: Observable.just(()),
-            saveButtonTap: saveButton.rx.tap.asObservable(),
-            symptomName: symptomNameTextField.rx.text.orEmpty.asObservable(),
-            severityValue: severityRelay.asObservable(),
-            notes: notesTextView.rx.text.orEmpty.asObservable(),
-            selectedImages: selectedImagesRelay.asObservable()
-        )
+              viewDidLoad: Observable.just(()),
+              saveButtonTap: saveButton.rx.tap.asObservable(),
+              symptomName: symptomNameTextField.rx.text.orEmpty.asObservable(),
+              severityValue: severityRelay.asObservable(),
+              notes: notesTextView.rx.text.orEmpty.asObservable(),
+              selectedImages: selectedImagesRelay.asObservable(),
+              isEditMode: Observable.just(isEditMode),
+              editingSymptom: Observable.just(editingSymptom)
+          )
         
         let output = viewModel.transform(input: input)
         

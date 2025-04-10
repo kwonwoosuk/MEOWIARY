@@ -17,6 +17,10 @@ final class DailyDiaryViewController: BaseViewController {
     private var viewModel = DailyDiaryViewModel()
     private let disposeBag = DisposeBag()
     private let contentView = UIView()
+    let imageManager = ImageManager.shared
+    // 수정 모드 프로퍼티
+    private var isEditMode = false
+    private var editingDayCard: DayCard?
     private var selectedImages: [UIImage] = [] {
         didSet {
             updateImageViews()
@@ -199,6 +203,9 @@ final class DailyDiaryViewController: BaseViewController {
             name: UIResponder.keyboardWillShowNotification,
             object: nil
         )
+        if isEditMode {
+            loadExistingData()
+        }
     }
     
     init() {
@@ -510,7 +517,9 @@ final class DailyDiaryViewController: BaseViewController {
             viewDidLoad: Observable.just(()),
             saveButtonTap: saveButton.rx.tap.asObservable(),
             diaryText: diaryTextObservable,
-            selectedImages: selectedImagesRelay.asObservable()
+            selectedImages: selectedImagesRelay.asObservable(),
+            isEditMode: Observable.just(isEditMode),
+            editingDayCard: Observable.just(editingDayCard)
         )
         
         let output = viewModel.transform(input: input)
@@ -749,6 +758,50 @@ final class DailyDiaryViewController: BaseViewController {
                 } else {
                     self.showToast(message: "동영상 생성에 실패했습니다.")
                 }
+            }
+        }
+    }
+    
+    func configureForEdit(dayCard: DayCard?) {
+        guard let dayCard = dayCard else { return }
+        isEditMode = true
+        editingDayCard = dayCard
+        
+        // viewDidLoad 이후에 호출되면 즉시 데이터 로드
+        if isViewLoaded {
+            loadExistingData()
+        }
+    }
+    
+    private func loadExistingData() {
+        guard isEditMode, let dayCard = editingDayCard else { return }
+        
+        // 네비게이션 타이틀 변경
+        navigationBarView.configure(title: "기록 수정", leftButtonType: .close)
+        
+        // 저장 버튼 텍스트 변경
+        saveButton.setTitle("수정 완료", for: .normal)
+        
+        // 텍스트 로드
+        if let notes = dayCard.notes {
+            inputTextView.text = notes
+            placeholderLabel.isHidden = true
+        }
+        
+        // 이미지 로드
+        let imageRecords = Array(dayCard.imageRecords)
+        if !imageRecords.isEmpty {
+            var images: [UIImage] = []
+            for record in imageRecords {
+                if let path = record.originalImagePath,
+                   let image = imageManager.loadOriginalImage(from: path) {
+                    images.append(image)
+                }
+            }
+            
+            if !images.isEmpty {
+                selectedImages = images
+                selectedImagesRelay.accept(images)
             }
         }
     }

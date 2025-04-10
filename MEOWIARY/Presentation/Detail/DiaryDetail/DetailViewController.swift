@@ -18,6 +18,7 @@ final class DetailViewController: BaseViewController {
   private let viewModel: DetailViewModel
   private var loadedImages: [UIImage?] = [] // 로드된 이미지를 저장
   var onDelete: (() -> Void)?
+var dayCardRepository = DayCardRepository()
   
   // MARK: - UI Components
   private let navigationBarView = CustomNavigationBarView()
@@ -167,12 +168,16 @@ final class DetailViewController: BaseViewController {
       make.center.equalTo(collectionView)
     }
   }
-  
-  override func configureView() {
-    view.backgroundColor = .white
-    navigationBarView.configure(title: "사진 상세", leftButtonType: .back)
-  }
-  
+    
+    override func configureView() {
+        view.backgroundColor = .white
+        navigationBarView.configure(
+            title: "사진 상세",
+            leftButtonType: .back,
+            rightButtonImage: DesignSystem.Icon.Navigation.editButton.toUIImage()
+        )
+    }
+    
   // MARK: - Binding
     // DetailViewController.swift의 바인딩 메서드 수정
 
@@ -279,6 +284,12 @@ final class DetailViewController: BaseViewController {
           })
           .disposed(by: disposeBag)
         
+        navigationBarView.rightButtonTapObservable
+               .subscribe(onNext: { [weak self] in
+                   self?.showEditScreen()
+               })
+               .disposed(by: disposeBag)
+        
         // 삭제 성공 후 닫기
         output.deleteSuccess
           .drive(onNext: { [weak self] imagePaths in
@@ -380,6 +391,20 @@ final class DetailViewController: BaseViewController {
     favoriteButton.setImage(UIImage(systemName: imageName), for: .normal)
     favoriteButton.tintColor = isFavorite ? UIColor.systemPink : DesignSystem.Color.Tint.main.inUIColor()
   }
+    private func showEditScreen() {
+        // 현재 날짜의 DayCard 불러오기
+        let dayCard = dayCardRepository.getDayCardForDate(year: viewModel.year, month: viewModel.month, day: viewModel.day)
+        if dayCard == nil || dayCard?.notes == nil && dayCard?.imageRecords.isEmpty == true {
+            showToast(message: "수정할 내용이 없습니다")
+            return
+        }
+        
+        // DailyDiaryViewController를 수정 모드로 열기
+        let diaryVC = DailyDiaryViewController(year: viewModel.year, month: viewModel.month, day: viewModel.day)
+        diaryVC.configureForEdit(dayCard: dayCard)
+        diaryVC.modalPresentationStyle = .fullScreen
+        present(diaryVC, animated: true)
+    }
 }
 
 // MARK: - UICollectionViewDataSource, UICollectionViewDelegateFlowLayout

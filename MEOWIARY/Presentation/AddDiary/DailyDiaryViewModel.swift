@@ -25,6 +25,8 @@ class DailyDiaryViewModel: BaseViewModel {
         let saveButtonTap: Observable<Void>
         let diaryText: Observable<String>
         let selectedImages: Observable<[UIImage]>
+        let isEditMode: Observable<Bool>
+        let editingDayCard: Observable<DayCard?>
     }
     
     struct Output {
@@ -61,6 +63,8 @@ class DailyDiaryViewModel: BaseViewModel {
         let isLoadingRelay = BehaviorRelay<Bool>(value: false)
         let saveSuccessRelay = PublishRelay<Void>()
         let saveErrorRelay = PublishRelay<Error>()
+        let isEditModeRelay = BehaviorRelay<Bool>(value: false)
+            let editingDayCardRelay = BehaviorRelay<DayCard?>(value: nil)
         
         let dateFormatter = DateFormatter()
         dateFormatter.locale = Locale(identifier: "ko_KR")
@@ -71,18 +75,45 @@ class DailyDiaryViewModel: BaseViewModel {
         dateFormatter.dateFormat = "EEEE"
         let dayOfWeekText = dateFormatter.string(from: currentDate)
         
+        input.isEditMode
+                .bind(to: isEditModeRelay)
+                .disposed(by: disposeBag)
+            
+            input.editingDayCard
+                .bind(to: editingDayCardRelay)
+                .disposed(by: disposeBag)
+        
         input.saveButtonTap
-            .withLatestFrom(Observable.combineLatest(input.diaryText, input.selectedImages))
-            .flatMap { [weak self] (diaryText, selectedImages) -> Observable<Void> in
-                guard let self = self else { return Observable.just(()) }
+               .withLatestFrom(Observable.combineLatest(
+                   input.diaryText,
+                   input.selectedImages,
+                   isEditModeRelay,
+                   editingDayCardRelay
+               ))
+               .flatMap { [weak self] (diaryText, selectedImages, isEditMode, editingDayCard) -> Observable<Void> in
+                   guard let self = self else { return Observable.just(()) }
+                   
+                   // 유효성 검사
+                   if diaryText.isEmpty && selectedImages.isEmpty {
+                       self.toastMessageRelay.accept("내용을 입력하거나 이미지를 추가해주세요.")
+                       return Observable.empty()
+                   }
+                   
+                   isLoadingRelay.accept(true)
                 
-                // 유효성 검사: 이미지도 없고 텍스트도 비어있으면 토스트 메시지 발송
-                if diaryText.isEmpty && selectedImages.isEmpty {
-                    self.toastMessageRelay.accept("내용을 입력하거나 이미지를 추가해주세요.")
-                    return Observable.empty() // 더 이상 진행하지 않음
-                }
-                
-                isLoadingRelay.accept(true)
+                if isEditMode, let dayCard = editingDayCard {
+                               return self.updateExistingDayCard(dayCard, text: diaryText, images: selectedImages)
+                                   .do(
+                                       onNext: { _ in
+                                           isLoadingRelay.accept(false)
+                                           saveSuccessRelay.accept(())
+                                       },
+                                       onError: { error in
+                                           isLoadingRelay.accept(false)
+                                           saveErrorRelay.accept(error)
+                                       }
+                                   )
+                           }
                 
                 let calendar = Calendar.current
                 let year = calendar.component(.year, from: self.currentDate)
@@ -181,12 +212,117 @@ class DailyDiaryViewModel: BaseViewModel {
         
         return Output(
             currentDateText: Driver.just(currentDateText),
-            dayOfWeekText: Driver.just(dayOfWeekText),
-            isLoading: isLoadingRelay.asDriver(),
-            saveSuccess: saveSuccessRelay.asDriver(onErrorDriveWith: .empty()),
-            saveError: saveErrorRelay.asDriver(onErrorDriveWith: .empty()),
-            toastMessage: toastMessageRelay.asDriver(onErrorJustReturn: "") // 토스트 메시지 추가
+                    dayOfWeekText: Driver.just(dayOfWeekText),
+                    isLoading: isLoadingRelay.asDriver(),
+                    saveSuccess: saveSuccessRelay.asDriver(onErrorDriveWith: .empty()),
+                    saveError: saveErrorRelay.asDriver(onErrorDriveWith: .empty()),
+                    toastMessage: toastMessageRelay.asDriver(onErrorJustReturn: "")
         )
+    }
+    
+    private func updateExistingDayCard(_ dayCard: DayCard, text: String, images: [UIImage]) -> Observable<Void> {
+        return Observable.create { [weak self] observer in
+            guard let self = self else {
+                observer.onError(NSError(domain: "DailyDiaryViewModel", code: -1, userInfo: nil))
+                return Disposables.create()
+            }
+            
+            let realm: Realm
+            do {
+                realm = try Realm()
+            } catch {
+                observer.onError(error)
+                return Disposables.create()
+            }
+            
+            // 1. 텍스트 업데이트
+            do {
+                try realm.write {
+                    dayCard.notes = text.isEmpty ? nil : text
+                }
+            } catch {
+                observer.onError(error)
+                return Disposables.create()
+            }
+            
+            // 2. 이미지 처리
+            // 모든 기존 이미지 참조 제거 후 새 이미지로 교체
+            let oldImageRecords = Array(dayCard.imageRecords)
+            
+            do {
+                try realm.write {
+                    dayCard.imageRecords.removeAll()
+                }
+            } catch {
+                observer.onError(error)
+                return Disposables.create()
+            }
+            
+            // 이미지가 있으면 저장, 없으면 바로 완료
+            if images.isEmpty {
+                // 변경 알림 발송
+                let calendar = Calendar.current
+                let year = calendar.component(.year, from: self.currentDate)
+                let month = calendar.component(.month, from: self.currentDate)
+                let day = calendar.component(.day, from: self.currentDate)
+                
+                NotificationCenter.default.post(
+                    name: Notification.Name(DayCardUpdatedNotification),
+                    object: nil,
+                    userInfo: ["year": year, "month": month, "day": day]
+                )
+                
+                observer.onNext(())
+                observer.onCompleted()
+                return Disposables.create()
+            }
+            
+            // 이미지 저장 배열 Observable 생성
+            let imageObservables = images.map { image -> Observable<Void> in
+                return self.imageManager.saveImage(image)
+                    .flatMap { imageRecord in
+                        return self.imageRecordRepository.saveImageRecord(imageRecord)
+                    }
+                    .flatMap { imageRecord -> Observable<Void> in
+                        do {
+                            try realm.write {
+                                dayCard.imageRecords.append(imageRecord)
+                            }
+                            return Observable.just(())
+                        } catch {
+                            return Observable.error(error)
+                        }
+                    }
+            }
+            
+            // 모든 이미지 저장 완료 후 성공 처리
+            Observable.concat(imageObservables)
+                .takeLast(1)
+                .subscribe(
+                    onNext: { _ in
+                        // 변경 알림 발송
+                        let calendar = Calendar.current
+                        let year = calendar.component(.year, from: self.currentDate)
+                        let month = calendar.component(.month, from: self.currentDate)
+                        let day = calendar.component(.day, from: self.currentDate)
+                        
+                        NotificationCenter.default.post(
+                            name: Notification.Name(DayCardUpdatedNotification),
+                            object: nil,
+                            userInfo: ["year": year, "month": month, "day": day]
+                        )
+                        
+                        observer.onNext(())
+                        observer.onCompleted()
+                    },
+                    onError: { error in
+                        observer.onError(error)
+                    }
+                )
+                .disposed(by: self.disposeBag)
+            
+            return Disposables.create()
+        }
     }
     
     private func saveWithImage(text: String, image: UIImage) -> Observable<Void> {

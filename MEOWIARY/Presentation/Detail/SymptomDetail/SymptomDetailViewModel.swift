@@ -117,6 +117,14 @@ final class SymptomDetailViewModel: BaseViewModel {
         )
     }
     
+    func getCurrentSymptom() -> Symptom? {
+       
+       if currentIndexRelay.value < symptomsRelay.value.count {
+            return symptomsRelay.value[currentIndexRelay.value]
+        }
+        return nil
+    }
+    
     // 증상 삭제 메서드 - 별도 증상 이미지 테이블 사용
     func deleteCurrentSymptoms() -> Observable<Void> {
         let symptoms = symptomsRelay.value

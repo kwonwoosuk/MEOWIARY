@@ -205,7 +205,11 @@ final class SymptomDetailViewController: BaseViewController {
     
     override func configureView() {
         view.backgroundColor = .white
-        navigationBarView.configure(title: "증상 상세", leftButtonType: .back)
+        navigationBarView.configure(
+               title: "증상 상세",
+               leftButtonType: .back,
+               rightButtonImage: DesignSystem.Icon.Navigation.editButton.toUIImage()
+           )
     }
     
     // MARK: - Binding
@@ -330,6 +334,13 @@ final class SymptomDetailViewController: BaseViewController {
             })
             .disposed(by: disposeBag)
         
+        // 편집 버튼
+        navigationBarView.rightButtonTapObservable
+               .subscribe(onNext: { [weak self] in
+                   self?.showEditScreen()
+               })
+               .disposed(by: disposeBag)
+        
         // 삭제 성공 후 닫기
         output.deleteSuccess
             .drive(onNext: { [weak self] imagePaths in
@@ -447,6 +458,19 @@ final class SymptomDetailViewController: BaseViewController {
         }
     }
     
+    private func showEditScreen() {
+        // 현재 선택된 증상 가져오기
+        guard let symptom = viewModel.getCurrentSymptom() else {
+            showToast(message: "수정할 증상 정보를 찾을 수 없습니다")
+            return
+        }
+        
+        // SymptomRecordViewController를 수정 모드로 열기
+        let recordVC = SymptomRecordViewController(year: viewModel.year, month: viewModel.month, day: viewModel.day)
+        recordVC.configureForEdit(symptom: symptom)
+        recordVC.modalPresentationStyle = .fullScreen
+        present(recordVC, animated: true)
+    }
     
 }
 
