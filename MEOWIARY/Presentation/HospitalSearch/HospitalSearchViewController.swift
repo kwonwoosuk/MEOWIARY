@@ -418,25 +418,25 @@ final class HospitalSearchViewController: BaseViewController {
     present(alert, animated: true)
   }
   
-  private func openKakaoMapNavigation(to hospital: Hospital) {
-    // 카카오맵 앱 URL 스킴 사용
-    let kakaoMapBaseURL = "kakaomap://route"
-    let destinationName = hospital.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-    let latitude = hospital.coordinate
-    let longitude = hospital.coordinate.longitude
+    private func openKakaoMapNavigation(to hospital: Hospital) {
+        // 카카오맵 앱 URL 스킴 사용
+        let kakaoMapBaseURL = "kakaomap://route"
+        let destinationName = hospital.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let latitude = hospital.coordinate.latitude
+        let longitude = hospital.coordinate.longitude
         
         let urlString = "\(kakaoMapBaseURL)?ep=\(latitude),\(longitude)&by=CAR&ename=\(destinationName)"
         
         if let url = URL(string: urlString), UIApplication.shared.canOpenURL(url) {
-          UIApplication.shared.open(url)
+            UIApplication.shared.open(url)
         } else {
-          // 카카오맵 앱이 설치되어 있지 않은 경우 웹 버전으로 열기
-          let webURLString = "https://map.kakao.com/link/to/\(destinationName),\(latitude),\(longitude)"
-          if let webURL = URL(string: webURLString) {
-            UIApplication.shared.open(webURL)
-          }
+            // 카카오맵 앱이 설치되어 있지 않은 경우 웹 버전으로 열기
+            let webURLString = "https://map.kakao.com/link/to/\(destinationName),\(latitude),\(longitude)"
+            if let webURL = URL(string: webURLString) {
+                UIApplication.shared.open(webURL)
+            }
         }
-      }
+    }
     }
 
     // MARK: - AddressSearchViewControllerDelegate
