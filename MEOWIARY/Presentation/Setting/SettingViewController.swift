@@ -68,32 +68,97 @@ final class SettingViewController: UIViewController {
     
     // MARK: - Realm 데이터 초기화 메서드
     private func resetAllRealmData() {
-        do {
-            let realm = try Realm()
-            
-            try realm.write {
-                // 모든 데이터 삭제
-                realm.deleteAll()
-            }
-            
-            // UserDefaults의 모의 데이터 생성 상태 초기화
-            let defaults = UserDefaults.standard
-            defaults.set(false, forKey: "mockDataCreated")
-            defaults.synchronize()
-            
-            // 앱 초기화 완료 토스트 메시지
-            showToast(message: "앱이 초기화되었습니다.")
-            
-            // 메인 화면으로 돌아가기
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.navigateToMainScreen()
-            }
-            
-        } catch {
-            print("Realm 데이터 초기화 중 오류 발생: \(error)")
-            showErrorAlert(message: "앱 초기화 중 오류가 발생했습니다.")
-        }
-    }
+           // 이미지 파일 삭제 작업 시작
+           deleteAllCustomImages()
+           
+           do {
+               let realm = try Realm()
+               
+               try realm.write {
+                   // 모든 데이터 삭제
+                   realm.deleteAll()
+               }
+               
+               // UserDefaults 초기화
+               resetUserDefaults()
+               
+               // 앱 초기화 완료 토스트 메시지
+               showToast(message: "앱이 초기화되었습니다.")
+               
+               // 메인 화면으로 돌아가기
+               DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                   self?.navigateToMainScreen()
+               }
+               
+           } catch {
+               print("Realm 데이터 초기화 중 오류 발생: \(error)")
+               showErrorAlert(message: "앱 초기화 중 오류가 발생했습니다.")
+           }
+       }
+    
+    private func deleteAllCustomImages() {
+          let fileManager = FileManager.default
+          let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+          
+          // 이미지 디렉토리 삭제 (원본, 썸네일)
+          let imageDirectories = ["original_images", "thumbnail_images"]
+          
+          for directory in imageDirectories {
+              let directoryURL = documentsPath.appendingPathComponent(directory)
+              
+              if fileManager.fileExists(atPath: directoryURL.path) {
+                  do {
+                      try fileManager.removeItem(at: directoryURL)
+                      print("\(directory) 디렉토리가 성공적으로 삭제되었습니다.")
+                  } catch {
+                      print("\(directory) 디렉토리 삭제 중 오류 발생: \(error)")
+                  }
+              }
+          }
+          
+          // 대표 이미지 파일 삭제 (feature_image_로 시작하는 모든 파일)
+          do {
+              let files = try fileManager.contentsOfDirectory(at: documentsPath, includingPropertiesForKeys: nil)
+              for file in files {
+                  let filename = file.lastPathComponent
+                  if filename.starts(with: "feature_image_") {
+                      try fileManager.removeItem(at: file)
+                      print("대표 이미지 파일 삭제됨: \(filename)")
+                  }
+              }
+          } catch {
+              print("대표 이미지 파일 삭제 중 오류 발생: \(error)")
+          }
+      }
+      
+      // UserDefaults 관련 데이터 초기화
+      private func resetUserDefaults() {
+          let defaults = UserDefaults.standard
+          
+          // 모의 데이터 생성 상태 초기화
+          defaults.set(false, forKey: "mockDataCreated")
+          
+          // 사용자 정의 색상 팔레트 초기화
+          defaults.removeObject(forKey: "customColorPalettes")
+          
+          // 월별 카드 색상 및 디스플레이 모드 초기화
+          for year in 2020...2030 {
+              for month in 1...12 {
+                  // 카드 색상 삭제
+                  defaults.removeObject(forKey: "card_color_\(year)_\(month)")
+                  
+                  // 디스플레이 모드 삭제
+                  defaults.removeObject(forKey: "display_mode_\(year)_\(month)")
+                  
+                  // 대표 이미지 플래그 삭제
+                  defaults.removeObject(forKey: "has_feature_image_\(year)_\(month)")
+              }
+          }
+          
+          // 변경사항 동기화
+          defaults.synchronize()
+          print("UserDefaults 관련 설정이 모두 초기화되었습니다.")
+      }
     
     // 메인 화면으로 돌아가는 메서드
     private func navigateToMainScreen() {
