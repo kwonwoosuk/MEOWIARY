@@ -13,6 +13,7 @@ class ColorPaletteCell: UICollectionViewCell {
     
     // MARK: - Properties
     var isAddButton = false
+    var deleteAction: (() -> Void)?
     
     // MARK: - UI Components
     private let colorView: UIView = {
@@ -23,7 +24,7 @@ class ColorPaletteCell: UICollectionViewCell {
     
     private let selectionIndicatorView: UIView = {
         let view = UIView()
-        view.backgroundColor = DesignSystem.Color.Tint.main.inUIColor()
+        view.backgroundColor = .clear
         view.layer.cornerRadius = 8
         view.layer.borderWidth = 3
         view.layer.borderColor = DesignSystem.Color.Tint.main.inUIColor().cgColor
@@ -38,6 +39,16 @@ class ColorPaletteCell: UICollectionViewCell {
         button.backgroundColor = UIColor.systemGray6
         button.layer.cornerRadius = 8
         button.isUserInteractionEnabled = false // 셀 자체가 탭 핸들링
+        return button
+    }()
+    
+    private let deleteButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
+        button.tintColor = .white
+        button.backgroundColor = UIColor.red.withAlphaComponent(0.8)
+        button.layer.cornerRadius = 12
+        button.isHidden = true
         return button
     }()
     
@@ -83,13 +94,15 @@ class ColorPaletteCell: UICollectionViewCell {
         }
     }
     
-    
+    // MARK: - Setup
     private func setupUI() {
         contentView.addSubview(selectionIndicatorView)
         contentView.addSubview(colorView)
         contentView.addSubview(addButton)
         contentView.addSubview(nameLabel)
         contentView.addSubview(hexLabel)
+        contentView.addSubview(deleteButton)
+        
         contentView.backgroundColor = .white
         contentView.layer.cornerRadius = 8
         contentView.layer.shadowColor = UIColor.black.withAlphaComponent(0.1).cgColor
@@ -121,9 +134,19 @@ class ColorPaletteCell: UICollectionViewCell {
             make.leading.trailing.equalToSuperview()
         }
         
+        deleteButton.snp.makeConstraints { make in
+            make.top.equalToSuperview().offset(-8)
+            make.trailing.equalToSuperview().offset(8)
+            make.width.height.equalTo(24)
+        }
+        
+        // 삭제 버튼 액션 설정
+        deleteButton.addTarget(self, action: #selector(deleteButtonTapped), for: .touchUpInside)
+        
         // 기본 상태는 일반 셀
         addButton.isHidden = true
         selectionIndicatorView.isHidden = true
+        deleteButton.isHidden = true
     }
     
     func configure(with color: UIColor, name: String, hexCode: String) {
@@ -144,6 +167,46 @@ class ColorPaletteCell: UICollectionViewCell {
         
         nameLabel.text = ""
         hexLabel.text = ""
+    }
+    
+    private var shouldShowDeleteButton = false
+
+    func showDeleteButton(_ show: Bool) {
+        shouldShowDeleteButton = show
+        
+        // 추가 버튼 셀이 아닌 경우에만 삭제 버튼 표시
+        if !isAddButton {
+            deleteButton.isHidden = !show
+        } else {
+            deleteButton.isHidden = true
+        }
+    }
+    
+    @objc private func deleteButtonTapped(_ sender: UIButton) {
+        // 이벤트 버블링 방지
+        sender.isUserInteractionEnabled = false
+        
+        // 애니메이션으로 셀 축소
+        UIView.animate(withDuration: 0.2, animations: {
+            self.contentView.transform = CGAffineTransform(scaleX: 0.8, y: 0.8)
+            self.contentView.alpha = 0
+        }) { [weak self] _ in
+            guard let self = self else { return }
+            // 액션 콜백 호출 (여기서 실제 삭제 발생)
+            self.deleteAction?()
+        }
+    }
+    
+    
+    
+    func setInteractionEnabled(_ enabled: Bool) {
+        isUserInteractionEnabled = enabled
+        // 시각적 피드백을 위해 편집 모드에서는 기본 팔레트 셀을 약간 흐리게 표시
+        if !enabled && !isAddButton {
+            contentView.alpha = 0.7
+        } else {
+            contentView.alpha = 1.0
+        }
     }
     
     private func updateSelectionState() {
@@ -169,12 +232,19 @@ class ColorPaletteCell: UICollectionViewCell {
     
     override func prepareForReuse() {
         super.prepareForReuse()
+        
         colorView.backgroundColor = nil
         nameLabel.text = nil
         hexLabel.text = nil
         isSelected = false
         transform = .identity
         selectionIndicatorView.isHidden = true
+        
+        // 중요: 재사용 시에도 삭제 버튼 상태 유지
+        deleteButton.isHidden = !shouldShowDeleteButton
+        
+        // 기본 상태 복원
+        contentView.alpha = 1.0
         contentView.backgroundColor = .white
     }
 }

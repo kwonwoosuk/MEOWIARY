@@ -5,11 +5,6 @@
 //  Created by 권우석 on 4/10/25.
 //
 
-//
-//  ColorPaletteView.swift
-//  MEOWIARY
-//
-
 import UIKit
 import SnapKit
 import RxSwift
@@ -64,6 +59,7 @@ class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
     private let disposeBag = DisposeBag()
     private var palettes: [ColorPalette] = []
     private let selectedIndexPathRelay = BehaviorRelay<IndexPath?>(value: nil)
+    private var isEditMode = false
     
     // MARK: - UI Components
     private let titleLabel: UILabel = {
@@ -110,6 +106,16 @@ class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
         return button
     }()
     
+    private let editButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("편집", for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        button.backgroundColor = UIColor(hex: "FF6A6A") // DesignSystem.Color.Tint.main
+        button.layer.cornerRadius = 8
+        return button
+    }()
+    
     private let selectButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("선택", for: .normal)
@@ -119,6 +125,18 @@ class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
         button.layer.cornerRadius = 8
         button.isEnabled = false // 처음에는 비활성화 상태
         button.alpha = 0.5
+        button.isHidden = true // 편집 모드에서만 보임
+        return button
+    }()
+    
+    private let doneButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("완료", for: .normal)
+        button.setTitleColor(.white, for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        button.backgroundColor = UIColor(hex: "42A5F5") // DesignSystem.Color.Tint.action
+        button.layer.cornerRadius = 8
+        button.isHidden = true // 편집 모드에서만 보임
         return button
     }()
     
@@ -130,7 +148,9 @@ class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
         addSubview(subtitleLabel)
         addSubview(colorCollectionView)
         addSubview(cancelButton)
+        addSubview(editButton)
         addSubview(selectButton)
+        addSubview(doneButton)
     }
     
     override func configureLayout() {
@@ -163,7 +183,21 @@ class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
             make.width.equalTo(self.snp.width).dividedBy(2.2)
         }
         
+        editButton.snp.makeConstraints { make in
+            make.trailing.equalToSuperview().offset(-16)
+            make.bottom.equalToSuperview().offset(-16)
+            make.height.equalTo(50)
+            make.width.equalTo(self.snp.width).dividedBy(2.2)
+        }
+        
         selectButton.snp.makeConstraints { make in
+            make.trailing.equalToSuperview().offset(-16)
+            make.bottom.equalToSuperview().offset(-16)
+            make.height.equalTo(50)
+            make.width.equalTo(self.snp.width).dividedBy(2.2)
+        }
+        
+        doneButton.snp.makeConstraints { make in
             make.trailing.equalToSuperview().offset(-16)
             make.bottom.equalToSuperview().offset(-16)
             make.height.equalTo(50)
@@ -175,8 +209,6 @@ class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
         backgroundColor = .white
         layer.cornerRadius = 16
         
-        
-        
         // 컬렉션뷰 설정
         colorCollectionView.delegate = self
         colorCollectionView.dataSource = self
@@ -184,10 +216,25 @@ class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
         colorCollectionView.isUserInteractionEnabled = true // 터치 활성화 명시
         colorCollectionView.delaysContentTouches = false // 터치 지연 비활성화
         colorCollectionView.canCancelContentTouches = true // 터치 취소 허용
+        
         // 버튼 액션 설정
         cancelButton.rx.tap
             .subscribe(onNext: { [weak self] in
                 self?.delegate?.didCancelSelection()
+            })
+            .disposed(by: disposeBag)
+        
+        // 편집 버튼 액션
+        editButton.rx.tap
+            .subscribe(onNext: { [weak self] in
+                self?.toggleEditMode(true)
+            })
+            .disposed(by: disposeBag)
+        
+        // 완료 버튼 액션
+        doneButton.rx.tap
+            .subscribe(onNext: { [weak self] in
+                self?.toggleEditMode(false)
             })
             .disposed(by: disposeBag)
         
@@ -216,6 +263,7 @@ class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
                 self.delegate?.didSelectColor(selectedPalette.color, hexCode: selectedPalette.hexCode)
             })
             .disposed(by: disposeBag)
+        
         // 기본 팔레트 로드
         loadDefaultPalettes()
         loadCustomPalettes()
@@ -228,14 +276,66 @@ class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
         colorCollectionView.reloadData()
     }
     
+    
+    private func updateButtonVisibility(showSelectButton: Bool) {
+        // 애니메이션 없이 즉시 변경
+        editButton.isHidden = showSelectButton
+        selectButton.isHidden = !showSelectButton
+        
+    }
+    
     // MARK: - Private Methods
+    
+    private func toggleEditMode(_ isEditing: Bool) {
+        isEditMode = isEditing
+        
+        // 애니메이션 없이 버튼 상태 즉시 변경
+        editButton.isHidden = isEditing
+        doneButton.isHidden = !isEditing
+        selectButton.isHidden = true
+        
+        // 선택 초기화
+        selectedIndexPathRelay.accept(nil)
+        
+        // 모든 셀의 삭제 버튼 상태 업데이트
+        updateAllCellsDeleteButtonState()
+    }
+    
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        updateAllCellsDeleteButtonState()
+    }
+    
+    private func updateAllCellsDeleteButtonState() {
+        // 현재 보이는 모든 셀에 대해 삭제 버튼 상태 업데이트
+        for indexPath in colorCollectionView.indexPathsForVisibleItems {
+            if let cell = colorCollectionView.cellForItem(at: indexPath) as? ColorPaletteCell {
+                if indexPath.row < palettes.count {
+                    let palette = palettes[indexPath.row]
+                    cell.showDeleteButton(isEditMode && palette.isCustom)
+                    cell.setInteractionEnabled(!isEditMode || palette.isCustom) // 편집 모드에서 커스텀 팔레트만 상호작용 가능
+                } else {
+                    // 추가 버튼은 편집 모드에서 비활성화
+                    cell.showDeleteButton(false)
+                    cell.setInteractionEnabled(!isEditMode)
+                }
+            }
+        }
+    }
     
     private func updateSelectedCell(indexPath: IndexPath?) {
         colorCollectionView.indexPathsForVisibleItems.forEach { visibleIndexPath in
-                if let cell = colorCollectionView.cellForItem(at: visibleIndexPath) as? ColorPaletteCell {
-                    cell.isSelected = (visibleIndexPath == indexPath)
+            if let cell = colorCollectionView.cellForItem(at: visibleIndexPath) as? ColorPaletteCell {
+                cell.isSelected = (visibleIndexPath == indexPath)
+                
+                // 편집 모드에서는 삭제 버튼 표시/숨김 처리
+                if isEditMode && visibleIndexPath.row < palettes.count {
+                    let palette = palettes[visibleIndexPath.row]
+                    cell.showDeleteButton(palette.isCustom)
+                } else {
+                    cell.showDeleteButton(false)
                 }
             }
+        }
     }
     
     private func loadDefaultPalettes() {
@@ -291,7 +391,6 @@ class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
         colorCollectionView.reloadData()
     }
     
-    // 팔레트 삭제
     func removeColorPalette(at indexPath: IndexPath) {
         guard indexPath.row < palettes.count else { return }
         
@@ -312,9 +411,12 @@ class ColorPaletteView: BaseView, UIGestureRecognizerDelegate {
             UserDefaults.standard.set(savedPalettes, forKey: "customColorPalettes")
         }
         
-        // 컬렉션뷰 업데이트
-        colorCollectionView.deleteItems(at: [indexPath])
+        // 컬렉션뷰 업데이트 (애니메이션 없이 삭제)
+        UIView.performWithoutAnimation {
+            colorCollectionView.deleteItems(at: [indexPath])
+        }
     }
+
     
     // 새 색상 선택 화면 표시
     private func showColorPicker() {
@@ -348,46 +450,72 @@ extension ColorPaletteView: UICollectionViewDataSource {
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ColorPaletteCell", for: indexPath) as! ColorPaletteCell
-        
-        if indexPath.row < palettes.count {
-            // 색상 팔레트 셀
-            let palette = palettes[indexPath.row]
-            cell.configure(with: palette.color, name: palette.name, hexCode: palette.hexCode)
-            cell.isAddButton = false
-        } else {
-            // 추가 버튼 셀
-            cell.configureAsAddButton()
-            cell.isAddButton = true
-        }
-        
-        return cell
-    }
+           
+           if indexPath.row < palettes.count {
+               // 색상 팔레트 셀
+               let palette = palettes[indexPath.row]
+               cell.configure(with: palette.color, name: palette.name, hexCode: palette.hexCode)
+               cell.isAddButton = false
+               
+               // 편집 모드에서는 사용자 정의 색상에 삭제 버튼 표시
+               cell.showDeleteButton(isEditMode && palette.isCustom)
+               
+               // 편집 모드에서는 커스텀 팔레트만 상호작용 가능
+               cell.setInteractionEnabled(!isEditMode || palette.isCustom)
+               
+               // 삭제 버튼 액션 설정
+               cell.deleteAction = { [weak self, weak cell] in
+                   guard let self = self else { return }
+                   
+                   // 현재 인덱스패스 계산 (셀이 이동했을 수 있으므로)
+                   if let currentIndexPath = self.colorCollectionView.indexPath(for: cell!) {
+                       self.removeColorPalette(at: currentIndexPath)
+                   }
+               }
+           } else {
+               // 추가 버튼 셀
+               cell.configureAsAddButton()
+               cell.isAddButton = true
+               cell.showDeleteButton(false)
+               
+               // 편집 모드에서는 추가 버튼 비활성화
+               cell.setInteractionEnabled(!isEditMode)
+           }
+           
+           return cell
+       }
 }
 
 // MARK: - UICollectionViewDelegate
 extension ColorPaletteView: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        print("Cell selected at: \(indexPath.row)")
-        if indexPath.row == palettes.count {
-            // 추가 버튼 선택 시 컬러 피커 표시
-            showColorPicker()
-            collectionView.deselectItem(at: indexPath, animated: true)
-            selectedIndexPathRelay.accept(nil) // 선택 상태 초기화
-        } else {
-            // 색상 선택 시 선택 상태 업데이트
-            selectedIndexPathRelay.accept(indexPath)
-            updateSelectedCell(indexPath: indexPath)
-            
-            // 선택된 셀에 피드백 추가
-            let cell = collectionView.cellForItem(at: indexPath) as? ColorPaletteCell
-//            UIView.animate(withDuration: 0.1) {
-//                cell?.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
-//            } completion: { _ in
-//                UIView.animate(withDuration: 0.1) {
-//                    cell?.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
-//                }
-//            }
-        }
+        // 편집 모드에서는 선택 처리 안함
+        if isEditMode {
+               collectionView.deselectItem(at: indexPath, animated: false)
+               return
+           }
+           
+           print("Cell selected at: \(indexPath.row)")
+           if indexPath.row == palettes.count {
+               // 추가 버튼 선택 시 컬러 피커 표시
+               showColorPicker()
+               collectionView.deselectItem(at: indexPath, animated: true)
+               selectedIndexPathRelay.accept(nil) // 선택 상태 초기화
+           } else {
+               // 이미 선택된 셀을 다시 선택한 경우 선택 해제
+               if let selectedIndexPath = selectedIndexPathRelay.value, selectedIndexPath == indexPath {
+                   selectedIndexPathRelay.accept(nil) // 선택 상태 초기화
+                   collectionView.deselectItem(at: indexPath, animated: true)
+                   // 애니메이션으로 선택 버튼 숨기고 편집 버튼 표시
+                   updateButtonVisibility(showSelectButton: false)
+               } else {
+                   // 새로운 셀 선택 시 선택 상태 업데이트
+                   selectedIndexPathRelay.accept(indexPath)
+                   updateSelectedCell(indexPath: indexPath)
+                   // 애니메이션으로 편집 버튼 숨기고 선택 버튼 표시
+                   updateButtonVisibility(showSelectButton: true)
+               }
+           }
     }
 }
 
