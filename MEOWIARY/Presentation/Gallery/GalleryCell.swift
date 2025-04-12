@@ -172,33 +172,51 @@ final class GalleryCell: UICollectionViewCell {
   }
   
   // MARK: - Configuration
-  func configure(with imageData: GalleryViewModel.ImageData, imageManager: ImageManager) {
-    // 날짜 포맷팅 (일)
-    dayLabel.text = "\(imageData.day)"
-    
-    // 요일 설정
-    let dateFormatter = DateFormatter()
-    dateFormatter.locale = Locale(identifier: "ko_KR")
-    dateFormatter.dateFormat = "E"
-    weekdayLabel.text = "\(dateFormatter.string(from: imageData.createdAt))"
-    
-    // 이미지 로드
-    if let image = imageManager.loadThumbnailImage(from: imageData.thumbnailPath) {
-      imageView.image = image
-      
-      // 노트가 있는 경우 텍스트 오버레이 표시
-      if let notes = imageData.notes, !notes.isEmpty {
-        textOverlay.isHidden = false
-        notesLabel.text = notes
-      } else {
-        textOverlay.isHidden = true
-      }
-    } else {
-      // 이미지가 없는 경우 기본 이미지 설정
-      imageView.image = UIImage(systemName: "photo")
-      imageView.contentMode = .scaleAspectFit
-      imageView.tintColor = DesignSystem.Color.Tint.darkGray.inUIColor()
-      textOverlay.isHidden = true
+    func configure(with imageData: GalleryViewModel.ImageData, imageManager: ImageManager) {
+        // 날짜 포맷팅 (일)
+        dayLabel.text = "\(imageData.day)"
+        
+        // 요일 설정
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "ko_KR")
+        dateFormatter.dateFormat = "E"
+        weekdayLabel.text = "\(dateFormatter.string(from: imageData.createdAt))"
+        
+        // 텍스트만 있는 특별 케이스 처리
+        if imageData.thumbnailPath == "text_only" {
+            // 텍스트만 있는 경우
+            imageView.image = UIImage(systemName: "doc.text")
+            imageView.contentMode = .scaleAspectFit
+            imageView.tintColor = DesignSystem.Color.Tint.darkGray.inUIColor()
+            
+            // 노트 표시
+            if let notes = imageData.notes, !notes.isEmpty {
+                textOverlay.isHidden = false
+                textOverlay.backgroundColor = UIColor.white
+                notesLabel.text = notes
+                notesLabel.textColor = DesignSystem.Color.Tint.text.inUIColor()
+            } else {
+                textOverlay.isHidden = true
+            }
+        } else {
+            // 일반적인 이미지 케이스 (기존 로직)
+            if let image = imageManager.loadThumbnailImage(from: imageData.thumbnailPath) {
+                imageView.image = image
+                
+                // 노트가 있는 경우 텍스트 오버레이 표시
+                if let notes = imageData.notes, !notes.isEmpty {
+                    textOverlay.isHidden = false
+                    notesLabel.text = notes
+                } else {
+                    textOverlay.isHidden = true
+                }
+            } else {
+                // 이미지가 없는 경우
+                imageView.image = UIImage(systemName: "photo")
+                imageView.contentMode = .scaleAspectFit
+                imageView.tintColor = DesignSystem.Color.Tint.darkGray.inUIColor()
+                textOverlay.isHidden = true
+            }
+        }
     }
-  }
 }

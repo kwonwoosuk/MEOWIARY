@@ -145,45 +145,61 @@ final class GalleryViewModel: BaseViewModel {
                 return Disposables.create()
             }
             
+            // 모든 DayCard 가져오기
             let dayCards = self.dayCardRepository.getDayCards(year: year, month: month)
-            var dayToImageData: [Int: ImageData] = [:]
+            
+            var imageDataList: [ImageData] = []
             let groupedDayCards = Dictionary(grouping: dayCards, by: { $0.day })
             
             for (day, dayCardsInDay) in groupedDayCards.sorted(by: { $0.key > $1.key }) {
                 for dayCard in dayCardsInDay {
-                    if !dayCard.imageRecords.isEmpty {
-                        for imageRecord in dayCard.imageRecords {
-                            if let originalPath = imageRecord.originalImagePath,
-                               let thumbnailPath = imageRecord.thumbnailImagePath {
-                                let fileExists = self.imageManager.checkImageFileExists(path: originalPath)
-                                if fileExists {
-                                    let imageData = ImageData(
-                                        id: imageRecord.id,
-                                        originalPath: originalPath,
-                                        thumbnailPath: thumbnailPath,
-                                        isFavorite: imageRecord.isFavorite,
-                                        createdAt: dayCard.date,
-                                        dayCardId: dayCard.id,
-                                        notes: dayCard.notes,
-                                        year: dayCard.year,
-                                        month: dayCard.month,
-                                        day: dayCard.day
-                                    )
-                                    if let existing = dayToImageData[day] {
-                                        if imageRecord.isFavorite && !existing.isFavorite {
-                                            dayToImageData[day] = imageData
-                                        }
-                                    } else {
-                                        dayToImageData[day] = imageData
+                    // 텍스트만 있는 경우도 포함
+                    if !dayCard.imageRecords.isEmpty || (dayCard.notes != nil && !dayCard.notes!.isEmpty) {
+                        if !dayCard.imageRecords.isEmpty {
+                            // 이미지 레코드 처리 (기존 로직)
+                            for imageRecord in dayCard.imageRecords {
+                                if let originalPath = imageRecord.originalImagePath,
+                                   let thumbnailPath = imageRecord.thumbnailImagePath {
+                                    
+                                    let fileExists = self.imageManager.checkImageFileExists(path: originalPath)
+                                    
+                                    if fileExists {
+                                        let imageData = ImageData(
+                                            id: imageRecord.id,
+                                            originalPath: originalPath,
+                                            thumbnailPath: thumbnailPath,
+                                            isFavorite: imageRecord.isFavorite,
+                                            createdAt: dayCard.date,
+                                            dayCardId: dayCard.id,
+                                            notes: dayCard.notes,
+                                            year: dayCard.year,
+                                            month: dayCard.month,
+                                            day: dayCard.day
+                                        )
+                                        imageDataList.append(imageData)
                                     }
                                 }
                             }
+                        } else if dayCard.notes != nil && !dayCard.notes!.isEmpty {
+                            // 텍스트만 있는 경우 - 더미 이미지 경로를 사용하거나 특별 처리
+                            let imageData = ImageData(
+                                id: UUID().uuidString,
+                                originalPath: "text_only", // 특수 경로 표시
+                                thumbnailPath: "text_only",
+                                isFavorite: false,
+                                createdAt: dayCard.date,
+                                dayCardId: dayCard.id,
+                                notes: dayCard.notes,
+                                year: dayCard.year,
+                                month: dayCard.month,
+                                day: dayCard.day
+                            )
+                            imageDataList.append(imageData)
                         }
                     }
                 }
             }
             
-            let imageDataList = Array(dayToImageData.values).sorted(by: { $0.day > $1.day })
             observer.onNext(imageDataList)
             observer.onCompleted()
             

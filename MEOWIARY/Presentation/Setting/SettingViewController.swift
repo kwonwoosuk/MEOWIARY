@@ -194,19 +194,20 @@ extension SettingViewController: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "SettingCell", for: indexPath)
+        // value1 스타일로 셀 생성 (오른쪽에 detailTextLabel이 표시됨)
+        let cell = UITableViewCell(style: .value1, reuseIdentifier: "SettingCell")
         let setting = settings[indexPath.row]
         
         cell.textLabel?.text = setting.title
         cell.textLabel?.font = DesignSystem.Font.Weight.regular(size: DesignSystem.Font.Size.regular)
         
         // 앱 초기화 셀의 경우 빨간색으로 표시
-      switch setting.isDestructive {
-             case .some(true):
-                 cell.textLabel?.textColor = .systemRed
-             default:
-                 cell.textLabel?.textColor = DesignSystem.Color.Tint.text.inUIColor()
-             }
+        switch setting.isDestructive {
+        case .some(true):
+            cell.textLabel?.textColor = .systemRed
+        default:
+            cell.textLabel?.textColor = DesignSystem.Color.Tint.text.inUIColor()
+        }
         
         cell.selectionStyle = setting.hasAction ? .default : .none
         
