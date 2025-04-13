@@ -148,57 +148,85 @@ final class GalleryViewModel: BaseViewModel {
             // 모든 DayCard 가져오기
             let dayCards = self.dayCardRepository.getDayCards(year: year, month: month)
             
-            var imageDataList: [ImageData] = []
+            // 날짜별 대표 이미지 또는 텍스트만 있는 항목을 저장할 Dictionary
+            var dayToImageData: [Int: ImageData] = [:]
+            
+            // 날짜별로 DayCard 그룹화
             let groupedDayCards = Dictionary(grouping: dayCards, by: { $0.day })
             
             for (day, dayCardsInDay) in groupedDayCards.sorted(by: { $0.key > $1.key }) {
+                var hasAddedForThisDay = false
+                
+                // 각 날짜에 대해 먼저 이미지가 있는 DayCard를 찾음
                 for dayCard in dayCardsInDay {
-                    // 텍스트만 있는 경우도 포함
-                    if !dayCard.imageRecords.isEmpty || (dayCard.notes != nil && !dayCard.notes!.isEmpty) {
-                        if !dayCard.imageRecords.isEmpty {
-                            // 이미지 레코드 처리 (기존 로직)
-                            for imageRecord in dayCard.imageRecords {
-                                if let originalPath = imageRecord.originalImagePath,
-                                   let thumbnailPath = imageRecord.thumbnailImagePath {
+                    if !dayCard.imageRecords.isEmpty {
+                        // 이미지 레코드 처리
+                        for imageRecord in dayCard.imageRecords {
+                            if let originalPath = imageRecord.originalImagePath,
+                               let thumbnailPath = imageRecord.thumbnailImagePath {
+                                
+                                let fileExists = self.imageManager.checkImageFileExists(path: originalPath)
+                                
+                                if fileExists {
+                                    let imageData = ImageData(
+                                        id: imageRecord.id,
+                                        originalPath: originalPath,
+                                        thumbnailPath: thumbnailPath,
+                                        isFavorite: imageRecord.isFavorite,
+                                        createdAt: dayCard.date,
+                                        dayCardId: dayCard.id,
+                                        notes: dayCard.notes,
+                                        year: dayCard.year,
+                                        month: dayCard.month,
+                                        day: dayCard.day
+                                    )
                                     
-                                    let fileExists = self.imageManager.checkImageFileExists(path: originalPath)
-                                    
-                                    if fileExists {
-                                        let imageData = ImageData(
-                                            id: imageRecord.id,
-                                            originalPath: originalPath,
-                                            thumbnailPath: thumbnailPath,
-                                            isFavorite: imageRecord.isFavorite,
-                                            createdAt: dayCard.date,
-                                            dayCardId: dayCard.id,
-                                            notes: dayCard.notes,
-                                            year: dayCard.year,
-                                            month: dayCard.month,
-                                            day: dayCard.day
-                                        )
-                                        imageDataList.append(imageData)
+                                    // 해당 날짜의 대표 이미지 선택 로직
+                                    if let existing = dayToImageData[day] {
+                                        // 즐겨찾기된 이미지를 우선적으로 선택
+                                        if imageRecord.isFavorite && !existing.isFavorite {
+                                            dayToImageData[day] = imageData
+                                        }
+                                    } else {
+                                        // 첫 이미지는 무조건 등록
+                                        dayToImageData[day] = imageData
+                                        hasAddedForThisDay = true
                                     }
                                 }
                             }
-                        } else if dayCard.notes != nil && !dayCard.notes!.isEmpty {
-                            // 텍스트만 있는 경우 - 더미 이미지 경로를 사용하거나 특별 처리
+                        }
+                    }
+                }
+                
+                // 이 날짜에 이미지가 없으면서 텍스트가 있는 DayCard가 있는지 확인
+                if !hasAddedForThisDay {
+                    for dayCard in dayCardsInDay {
+                        // 텍스트만 있는 DayCard 처리
+                        if let notes = dayCard.notes, !notes.isEmpty {
+                            // 텍스트만 있는 항목도 표시하기 위한 ImageData 생성
+                            // isTextOnly 플래그를 사용하기 위해 특별한 ID 접두사 사용
                             let imageData = ImageData(
-                                id: UUID().uuidString,
-                                originalPath: "text_only", // 특수 경로 표시
-                                thumbnailPath: "text_only",
+                                id: "text_only_\(UUID().uuidString)", // 텍스트만 있음을 표시하는 특별한 ID
+                                originalPath: "text_only", // 특별한 경로로 설정하여 UI에서 구분할 수 있게 함
+                                thumbnailPath: "text_only", // 특별한 경로로 설정
                                 isFavorite: false,
                                 createdAt: dayCard.date,
                                 dayCardId: dayCard.id,
-                                notes: dayCard.notes,
+                                notes: notes,
                                 year: dayCard.year,
                                 month: dayCard.month,
                                 day: dayCard.day
                             )
-                            imageDataList.append(imageData)
+                            
+                            dayToImageData[day] = imageData
+                            break // 이 날짜에 대해 하나의 텍스트 항목만 추가
                         }
                     }
                 }
             }
+            
+            // Dictionary에서 이미지 또는 텍스트 항목만 추출하여 날짜 내림차순으로 정렬
+            let imageDataList = Array(dayToImageData.values).sorted(by: { $0.day > $1.day })
             
             observer.onNext(imageDataList)
             observer.onCompleted()
