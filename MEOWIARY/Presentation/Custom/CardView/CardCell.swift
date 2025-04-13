@@ -6,7 +6,6 @@
 import UIKit
 import RxSwift
 import SnapKit
-import Kingfisher
 
 final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
     
