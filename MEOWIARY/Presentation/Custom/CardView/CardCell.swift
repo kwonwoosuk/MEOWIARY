@@ -849,9 +849,20 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
     }
     
     private func resetButtonDisplay(_ button: UIButton) {
-        // 기존 서브뷰 제거
+        // 언더바 뷰 찾기
+        var todayIndicator: UIView?
         for subview in button.subviews {
-            if subview is UIImageView || (subview != button.titleLabel) {
+            // 언더바 뷰의 특성으로 식별
+            if subview != button.titleLabel && subview.frame.height == 2 &&
+               subview.backgroundColor == DesignSystem.Color.Tint.text.inUIColor() {
+                todayIndicator = subview
+                break
+            }
+        }
+        
+        // 언더바를 제외한 기존 서브뷰 제거
+        for subview in button.subviews {
+            if subview is UIImageView || (subview != button.titleLabel && subview != todayIndicator) {
                 subview.removeFromSuperview()
             }
         }
@@ -883,6 +894,11 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
         
         // 텍스트 보이게 설정
         button.titleLabel?.isHidden = false
+        
+        // 언더바가 있으면 최상위로 가져오기
+        if let indicator = todayIndicator {
+            button.bringSubviewToFront(indicator)
+        }
     }
     
     
@@ -890,8 +906,23 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
         let isSmallScreen = UIScreen.main.bounds.height <= 667
         let indicatorSize: CGFloat = isSmallScreen ? 20 : 24
         
-        // 기존 이미지뷰나 표시기 제거
-        resetButtonDisplay(button)
+        // 버튼에서 언더바 뷰 찾기 (이미 addTodayIndicator에서 추가된 경우)
+        var todayIndicator: UIView?
+        for subview in button.subviews {
+            // 언더바 뷰의 특성으로 식별 (높이가 2인 검은색 막대)
+            if subview != button.titleLabel && subview.frame.height == 2 &&
+               subview.backgroundColor == DesignSystem.Color.Tint.text.inUIColor() {
+                todayIndicator = subview
+                break
+            }
+        }
+        
+        // 기존 이미지뷰나 다른 표시기들 제거하되 언더바는 유지
+        for subview in button.subviews {
+            if subview != button.titleLabel && subview != todayIndicator {
+                subview.removeFromSuperview()
+            }
+        }
         
         // 증상 심각도에 따른 색상 지정
         var indicatorColor: UIColor
@@ -926,9 +957,14 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
             height: indicatorSize
         )
         
-        // 텍스트 숨기기
+        // 텍스트만 숨기고 언더바는 유지
         button.titleLabel?.isHidden = true
         button.setTitleColor(.clear, for: .normal)
+        
+        // 언더바가 가려지지 않도록 최상위로 가져오기
+        if let indicator = todayIndicator {
+            button.bringSubviewToFront(indicator)
+        }
     }
     
     // 이미지 표시 메서드 수정
@@ -942,8 +978,23 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
         let isSmallScreen = UIScreen.main.bounds.height <= 667
         let indicatorSize: CGFloat = isSmallScreen ? 18 : 22
         
-        // 기존 이미지뷰나 표시기 제거
-        resetButtonDisplay(button)
+        // 버튼에서 언더바 뷰 찾기 (이미 addTodayIndicator에서 추가된 경우)
+        var todayIndicator: UIView?
+        for subview in button.subviews {
+            // 언더바 뷰의 특성으로 식별 (높이가 2인 검은색 막대)
+            if subview != button.titleLabel && subview.frame.height == 2 &&
+               subview.backgroundColor == DesignSystem.Color.Tint.text.inUIColor() {
+                todayIndicator = subview
+                break
+            }
+        }
+        
+        // 기존 이미지뷰를 제거하되 언더바는 유지
+        for subview in button.subviews {
+            if subview is UIImageView || (subview != button.titleLabel && subview != todayIndicator) {
+                subview.removeFromSuperview()
+            }
+        }
         
         // 실제 이미지가 존재하는지 먼저 확인
         if let thumbnail = ImageManager.shared.loadThumbnailImage(from: imagePath) {
@@ -964,9 +1015,14 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
                 height: indicatorSize
             )
             
-            // 이미지가 있을 때 날짜 텍스트 강제로 완전히 숨기기
+            // 이미지가 있을 때 날짜 텍스트만 숨기고 언더바는 그대로 유지
             button.titleLabel?.isHidden = true
             button.setTitleColor(.clear, for: .normal)
+            
+            // 언더바가 가려지지 않도록 최상위로 가져오기
+            if let indicator = todayIndicator {
+                button.bringSubviewToFront(indicator)
+            }
         } else {
             // 이미지가 로드되지 않으면 텍스트 표시 복원
             button.titleLabel?.isHidden = false
