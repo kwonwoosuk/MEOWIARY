@@ -4,12 +4,12 @@
 
 ## 📋 목차
 
-- [프로젝트 소개](https://www.notion.so/1d111ec0331280f3a27be7bb0366d08d?pvs=21)
-- [주요기능](https://www.notion.so/1d111ec0331280f3a27be7bb0366d08d?pvs=21)
-- [프로젝트 구조](https://www.notion.so/1d111ec0331280f3a27be7bb0366d08d?pvs=21)
-- [기술 스택](https://www.notion.so/1d111ec0331280f3a27be7bb0366d08d?pvs=21)
-- [주요 구현 내용](https://www.notion.so/1d111ec0331280f3a27be7bb0366d08d?pvs=21)
-- [트러블 슈팅](https://www.notion.so/1d111ec0331280f3a27be7bb0366d08d?pvs=21)
+- 프로젝트 소개
+- 주요기능
+- 기술 스택
+- 프로젝트 구조
+- 주요 구현 내용
+- 트러블 슈팅
 
 ## 프로젝트 소개
 
