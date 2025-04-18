@@ -42,7 +42,8 @@ MEOWIARY는 반려묘의 일상을 기록하고 건강 상태를 관리할 수 �
 ## 🛠 기술 스택
 
 
-![image](https://github.com/user-attachments/assets/413ab3d1-3fd2-4b21-93ae-0befe5af92f9)
+![image](https://github.com/user-attachments/assets/ece98d9a-767e-4f30-9695-d62a67f8f498)
+
 
 
 
