@@ -41,6 +41,13 @@ MEOWIARY는 반려묘의 일상을 기록하고 건강 상태를 관리할 수 �
 
 ## 🛠 기술 스택
 
+
+![image](https://github.com/user-attachments/assets/413ab3d1-3fd2-4b21-93ae-0befe5af92f9)
+
+
+
+
+
 - **언어 및 프레임워크**: Swift, UIKit
 - **아키텍처**: MVVM + RxSwift Input/Output 패턴
 - **UI 레이아웃**: SnapKit
