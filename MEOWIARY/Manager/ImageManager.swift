@@ -144,7 +144,6 @@ class ImageManager {
                     observer.onError(error)
                 }
             } else {
-                print("JPEG 변환 실패, PNG로 시도")
                 if let originalData = normalizedImage.pngData() {
                     let originalImagePath = "\(imageID).png"
                     let thumbnailImagePath = "\(imageID).png"
