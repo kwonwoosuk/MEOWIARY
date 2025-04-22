@@ -15,6 +15,8 @@
 		4D06C7722D999BA0006BB756 /* APIKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D06C7712D999BA0006BB756 /* APIKey.swift */; };
 		4D71DA342D95873C004E38AE /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 4D71DA332D95873C004E38AE /* README.md */; };
 		4D86B6582DA298F40055AC80 /* AcknowList in Frameworks */ = {isa = PBXBuildFile; productRef = 4D86B6572DA298F40055AC80 /* AcknowList */; };
+		4DC674672DB78CE300BF22EE /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 4DC674662DB78CE300BF22EE /* FirebaseAnalyticsWithoutAdIdSupport */; };
+		4DC674692DB78CE300BF22EE /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 4DC674682DB78CE300BF22EE /* FirebaseCrashlytics */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -65,7 +67,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D0269862D99523500572EA7 /* SnapKit in Frameworks */,
+				4DC674672DB78CE300BF22EE /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */,
 				4D0269832D99521C00572EA7 /* RxSwift in Frameworks */,
+				4DC674692DB78CE300BF22EE /* FirebaseCrashlytics in Frameworks */,
 				4D02698C2D99527E00572EA7 /* RealmSwift in Frameworks */,
 				4D86B6582DA298F40055AC80 /* AcknowList in Frameworks */,
 				4D0269812D99521C00572EA7 /* RxCocoa in Frameworks */,
@@ -126,6 +130,8 @@
 				4D0269852D99523500572EA7 /* SnapKit */,
 				4D02698B2D99527E00572EA7 /* RealmSwift */,
 				4D86B6572DA298F40055AC80 /* AcknowList */,
+				4DC674662DB78CE300BF22EE /* FirebaseAnalyticsWithoutAdIdSupport */,
+				4DC674682DB78CE300BF22EE /* FirebaseCrashlytics */,
 			);
 			productName = MEOWIARY;
 			productReference = 4D71D97A2D958717004E38AE /* MEOWIARY.app */;
@@ -160,6 +166,7 @@
 				4D0269842D99523500572EA7 /* XCRemoteSwiftPackageReference "SnapKit" */,
 				4D02698A2D99527E00572EA7 /* XCRemoteSwiftPackageReference "realm-swift" */,
 				4D86B6562DA298F40055AC80 /* XCRemoteSwiftPackageReference "AcknowList" */,
+				4DC674652DB78CE300BF22EE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 4D71D97B2D958717004E38AE /* Products */;
@@ -445,6 +452,14 @@
 				minimumVersion = 3.3.0;
 			};
 		};
+		4DC674652DB78CE300BF22EE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.12.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -472,6 +487,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4D86B6562DA298F40055AC80 /* XCRemoteSwiftPackageReference "AcknowList" */;
 			productName = AcknowList;
+		};
+		4DC674662DB78CE300BF22EE /* FirebaseAnalyticsWithoutAdIdSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4DC674652DB78CE300BF22EE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsWithoutAdIdSupport;
+		};
+		4DC674682DB78CE300BF22EE /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4DC674652DB78CE300BF22EE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
