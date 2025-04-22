@@ -9,6 +9,7 @@ import UIKit
 import RxSwift
 import RxCocoa
 import SnapKit
+import WidgetKit
 
 class ScheduleAddViewController: BaseViewController {
     
@@ -258,6 +259,12 @@ class ScheduleAddViewController: BaseViewController {
         
         // 일정 저장
         ScheduleManager.shared.addSchedule(schedule)
+        
+        // UserDefaults 강제 동기화
+        UserDefaults.standard.synchronize()
+        
+        // 위젯 업데이트 요청
+        WidgetCenter.shared.reloadAllTimelines()
         
         // 저장 완료 토스트 메시지
         showToast(message: "일정이 추가되었습니다")

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import WidgetKit
 
 struct Schedule: Codable, Identifiable, Equatable {
     var id: String = UUID().uuidString
@@ -59,7 +60,7 @@ extension UserDefaults {
         let encoder = JSONEncoder()
         if let encoded = try? encoder.encode(schedules) {
             self.set(encoded, forKey: UserDefaults.scheduleKey)
-            self.synchronize()
+            self.synchronize() // 명시적 동기화 추가
         }
     }
     
@@ -84,10 +85,13 @@ extension UserDefaults {
     }
 }
 
-// App Group 설정을 위한 유틸리티
+
 class ScheduleManager {
     static let shared = ScheduleManager()
     private let userDefaults: UserDefaults
+    
+    // 신호용 속성 - 일정이 변경되었을 때 알림 발송에 사용
+    private(set) var lastUpdated = Date()
     
     private init() {
         // App Group UserDefaults 설정
@@ -101,6 +105,18 @@ class ScheduleManager {
     // 일정 저장
     func saveSchedules(_ schedules: [Schedule]) {
         userDefaults.saveSchedules(schedules)
+        lastUpdated = Date() 
+        
+        // 변경 알림 발송
+        NotificationCenter.default.post(
+            name: Notification.Name("ScheduleDataChanged"),
+            object: nil
+        )
+        
+        // 위젯 업데이트 요청
+        #if !WIDGET_EXTENSION
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
     
     // 일정 불러오기
@@ -113,6 +129,8 @@ class ScheduleManager {
         var schedules = loadSchedules()
         schedules.append(schedule)
         saveSchedules(schedules)
+        
+        print("일정 추가됨: \(schedule.title) - 현재 총 \(schedules.count)개")
     }
     
     // 일정 삭제
@@ -120,6 +138,8 @@ class ScheduleManager {
         var schedules = loadSchedules()
         schedules.removeAll { $0.id == id }
         saveSchedules(schedules)
+        
+        print("일정 삭제됨: ID \(id) - 남은 일정 수: \(schedules.count)")
     }
     
     // 가장 가까운 일정 가져오기
@@ -141,5 +161,10 @@ class ScheduleManager {
     // 특정 날짜에 일정이 있는지 확인
     func hasSchedule(on date: Date) -> Bool {
         return userDefaults.hasSchedule(on: date)
+    }
+    
+    // 일정이 변경되었는지 확인하는 메서드 추가
+    func checkForUpdates(since date: Date) -> Bool {
+        return lastUpdated > date
     }
 }

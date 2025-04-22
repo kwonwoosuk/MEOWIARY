@@ -104,6 +104,13 @@
 			);
 			target = 4DC674EE2DB7C42900BF22EE /* ScheduleWidgetExtension */;
 		};
+		4DC675542DB7D16500BF22EE /* Exceptions for "ScheduleWidget" folder in "MEOWIARY" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ScheduleWidget.swift,
+			);
+			target = 4D71D9792D958717004E38AE /* MEOWIARY */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -119,6 +126,7 @@
 		4DC674F52DB7C42900BF22EE /* ScheduleWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				4DC675542DB7D16500BF22EE /* Exceptions for "ScheduleWidget" folder in "MEOWIARY" target */,
 				4DC675032DB7C42B00BF22EE /* Exceptions for "ScheduleWidget" folder in "ScheduleWidgetExtension" target */,
 			);
 			path = ScheduleWidget;

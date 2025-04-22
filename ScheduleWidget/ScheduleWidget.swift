@@ -9,62 +9,93 @@ import WidgetKit
 import SwiftUI
 
 struct Provider: TimelineProvider {
-    func placeholder(in context: Context) -> ScheduleEntry {
-        ScheduleEntry(date: Date(), schedules: getSampleSchedules())
+    // 그룹 UserDefaults 설정
+    private let sharedDefaults = UserDefaults(suiteName: "group.com.kwonws.meowiary")
+    
+    func placeholder(in context: Context) -> ScheduleWidgetEntry {
+        ScheduleWidgetEntry(
+            date: Date(),
+            schedules: [
+                ScheduleItem(title: "예방접종", dDay: "D-3", color: "FF6A6A"),
+                ScheduleItem(title: "건강검진", dDay: "D-7", color: "42A5F5")
+            ]
+        )
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (ScheduleEntry) -> ()) {
-        let entry = ScheduleEntry(date: Date(), schedules: getUpcomingSchedules())
+    func getSnapshot(in context: Context, completion: @escaping (ScheduleWidgetEntry) -> ()) {
+        let entry = getEntry()
         completion(entry)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
-        let entry = ScheduleEntry(date: Date(), schedules: getUpcomingSchedules())
+        // 현재 날짜
+        let currentDate = Date()
         
-        // 다음 날 자정에 업데이트 (D-day 계산을 위해)
-        let midnight = Calendar.current.startOfDay(for: Date().addingTimeInterval(24 * 60 * 60))
+        // 엔트리 가져오기
+        let entry = getEntry()
         
+        // 타임라인 생성 - 매일 자정에 업데이트
+        let midnight = Calendar.current.startOfDay(for: currentDate.addingTimeInterval(86400))
         let timeline = Timeline(entries: [entry], policy: .after(midnight))
+        
         completion(timeline)
     }
     
-    // 임시 샘플 데이터
-    private func getSampleSchedules() -> [Schedule] {
-        let today = Date()
-        let nextWeek = Calendar.current.date(byAdding: .day, value: 7, to: today)!
-        let twoWeeksLater = Calendar.current.date(byAdding: .day, value: 14, to: today)!
+    // 엔트리 생성 메서드
+    private func getEntry() -> ScheduleWidgetEntry {
+        // 현재 날짜
+        let currentDate = Date()
         
-        return [
-            Schedule(title: "예방접종 일정", date: nextWeek, type: .vaccination, color: "FF6A6A"),
-            Schedule(title: "정기 검진", date: twoWeeksLater, type: .checkup, color: "42A5F5")
-        ]
+        // 상위 3개 일정 가져오기
+        let topSchedules = getUpcomingSchedules(limit: 3)
+        
+        return ScheduleWidgetEntry(
+            date: currentDate,
+            schedules: topSchedules
+        )
     }
     
-    // 실제 일정 데이터 가져오기
-    private func getUpcomingSchedules() -> [Schedule] {
-        // App Group을 통해 UserDefaults 접근
-        guard let sharedUserDefaults = UserDefaults(suiteName: "group.com.kwonws.meowiary") else {
-            return getSampleSchedules()
+    // 다음 일정 가져오기
+    private func getUpcomingSchedules(limit: Int = 3) -> [ScheduleItem] {
+        guard let data = sharedDefaults?.data(forKey: "savedSchedules") else {
+            return []
         }
         
-        // 일정 불러오기
-        if let data = sharedUserDefaults.data(forKey: "savedSchedules") {
+        do {
             let decoder = JSONDecoder()
-            if let decoded = try? decoder.decode([Schedule].self, from: data) {
-                // 현재 날짜 이후의 일정만 필터링 & 날짜순 정렬
-                let now = Date()
-                return decoded.filter { $0.date >= now }
-                    .sorted { $0.date < $1.date }
+            let schedules = try decoder.decode([Schedule].self, from: data)
+            
+            // 오늘 이후의 일정만 필터링하고 날짜순 정렬
+            let currentDate = Date()
+            let upcomingSchedules = schedules.filter { $0.date >= currentDate }
+                                           .sorted { $0.date < $1.date }
+                                           .prefix(limit)
+            
+            // ScheduleItem 형식으로 변환
+            return upcomingSchedules.map { schedule in
+                ScheduleItem(
+                    title: schedule.title,
+                    dDay: schedule.dDayText(),
+                    color: schedule.color
+                )
             }
+        } catch {
+            print("위젯 일정 데이터 디코딩 오류: \(error)")
+            return []
         }
-        
-        return getSampleSchedules()
     }
 }
 
-struct ScheduleEntry: TimelineEntry {
+struct ScheduleItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let dDay: String
+    let color: String
+}
+
+struct ScheduleWidgetEntry: TimelineEntry {
     let date: Date
-    let schedules: [Schedule]
+    let schedules: [ScheduleItem]
 }
 
 struct ScheduleWidgetEntryView : View {
@@ -73,87 +104,158 @@ struct ScheduleWidgetEntryView : View {
     
     var body: some View {
         ZStack {
-            Color(UIColor.secondarySystemBackground)
+            // 배경을 하얀색으로 변경
+            Color.white
                 .edgesIgnoringSafeArea(.all)
             
-            HStack(spacing: 10) {
-                // 왼쪽: 오늘 날짜
-                VStack(alignment: .center) {
-                    Text("\(Calendar.current.component(.day, from: Date()))")
-                        .font(.system(size: 40, weight: .bold))
-                        .foregroundColor(.primary)
-                    
-                    Text(weekdayString())
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .frame(width: 70)
-                .padding(.vertical, 10)
-                
-                Rectangle()
-                    .fill(Color.pink)
-                    .frame(width: 2)
-                    .padding(.vertical, 10)
-                
-                // 오른쪽: 일정 목록
-                VStack(alignment: .leading, spacing: 8) {
-                    if entry.schedules.isEmpty {
-                        Text("예정된 일정이 없습니다")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    } else {
-                        // 가장 가까운 일정 표시 (최대 2개)
-                        ForEach(Array(entry.schedules.prefix(family == .systemSmall ? 1 : 2).enumerated()), id: \.element.id) { _, schedule in
-                            ScheduleRow(schedule: schedule)
-                        }
-                    }
-                }
-                .padding(.trailing, 10)
-                .frame(maxWidth: .infinity)
+            if family == .systemSmall {
+                smallWidgetLayout
+            } else {
+                mediumWidgetLayout
             }
-            .padding(.horizontal, 10)
         }
     }
     
-    func weekdayString() -> String {
+    // 작은 위젯 레이아웃
+    var smallWidgetLayout: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // 헤더 - 날짜 정보
+            HStack(alignment: .bottom) {
+                Text("\(Calendar.current.component(.day, from: Date()))")
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundColor(.black)
+                
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(weekdayString())
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.gray)
+                        .padding(.bottom, 2)
+                }
+            }
+            
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color.gray.opacity(0.2))
+                .padding(.vertical, 2)
+            
+            // 일정 목록
+            if entry.schedules.isEmpty {
+                Text("예정된 일정이 없습니다")
+                    .font(.system(size: 10))
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 10)
+            } else {
+                ForEach(entry.schedules.prefix(1)) { schedule in
+                    HStack {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color(UIColor(hex: schedule.color) ?? .systemGray))
+                            .frame(width: 4, height: 16)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(schedule.title)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.black)
+                                .lineLimit(1)
+                            
+                            if !schedule.dDay.isEmpty {
+                                Text(schedule.dDay)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 1)
+                                    .background(Color(UIColor(hex: schedule.color) ?? .systemGray))
+                                    .cornerRadius(4)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+        .padding(12)
+    }
+    
+    // 중간 위젯 레이아웃
+    var mediumWidgetLayout: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // 헤더 - 날짜 정보
+            HStack(alignment: .bottom) {
+                Text("\(Calendar.current.component(.day, from: Date()))")
+                    .font(.system(size: 34, weight: .bold))
+                    .foregroundColor(.black)
+                
+                Text(weekdayString())
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.gray)
+                    .padding(.bottom, 4)
+                    .padding(.leading, 2)
+                
+                Spacer()
+                
+                Text(formatDate())
+                    .font(.system(size: 14))
+                    .foregroundColor(.gray)
+            }
+            
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color.gray.opacity(0.2))
+                .padding(.vertical, 4)
+            
+            // 일정 목록
+            if entry.schedules.isEmpty {
+                Text("예정된 일정이 없습니다")
+                    .font(.system(size: 15))
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 12)
+            } else {
+                ForEach(entry.schedules.prefix(3)) { schedule in
+                    HStack(spacing: 10) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color(UIColor(hex: schedule.color) ?? .systemGray))
+                            .frame(width: 4, height: 18)
+                        
+                        Text(schedule.title)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.black)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                        
+                        if !schedule.dDay.isEmpty {
+                            Text(schedule.dDay)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(Color(UIColor(hex: schedule.color) ?? .systemGray))
+                                .cornerRadius(4)
+                                .fixedSize()
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+        .padding(14)
+    }
+    
+    // 요일 문자열
+    private func weekdayString() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "E"
         formatter.locale = Locale(identifier: "ko_KR")
         return formatter.string(from: Date())
     }
-}
-
-struct ScheduleRow: View {
-    let schedule: Schedule
     
-    var body: some View {
-        HStack {
-            // 일정 색상 표시
-            Circle()
-                .fill(Color(UIColor(named: schedule.color) ?? UIColor.gray))
-                .frame(width: 12, height: 12)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(schedule.title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                
-                HStack(spacing: 4) {
-                    Text(formatDate(schedule.date))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-    }
-    
-    // Date 포맷팅 함수 추가
-    private func formatDate(_ date: Date) -> String {
+    // 날짜 포맷
+    private func formatDate() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy년 MM월 dd일"
-        return formatter.string(from: date)
+        formatter.locale = Locale(identifier: "ko_KR")
+        return formatter.string(from: Date())
     }
 }
 
@@ -170,15 +272,23 @@ struct ScheduleWidget: Widget {
     }
 }
 
-struct ScheduleWidget_Previews: PreviewProvider {
-    static var previews: some View {
-        ScheduleWidgetEntryView(entry: ScheduleEntry(
-            date: Date(),
-            schedules: [
-                Schedule(title: "예방접종", date: Date().addingTimeInterval(60*60*24*3), type: .vaccination, color: "FF6A6A"),
-                Schedule(title: "정기 검진", date: Date().addingTimeInterval(60*60*24*7), type: .checkup, color: "42A5F5")
-            ]
-        ))
-        .previewContext(WidgetPreviewContext(family: .systemMedium))
+// HEX 색상 변환을 위한 확장
+extension UIColor {
+    convenience init?(hex: String?) {
+        guard let hex = hex else { return nil }
+        
+        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
+        
+        var rgb: UInt64 = 0
+        
+        guard Scanner(string: hexSanitized).scanHexInt64(&rgb) else { return nil }
+        
+        let red = CGFloat((rgb & 0xFF0000) >> 16) / 255.0
+        let green = CGFloat((rgb & 0x00FF00) >> 8) / 255.0
+        let blue = CGFloat(rgb & 0x0000FF) / 255.0
+        
+        self.init(red: red, green: green, blue: blue, alpha: 1.0)
     }
 }
+

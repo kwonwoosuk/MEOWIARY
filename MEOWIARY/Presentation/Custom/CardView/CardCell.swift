@@ -597,6 +597,7 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
             // 대표 이미지 모드
             if hasCustomFeatureImage {
                 // 사용자가 설정한 대표 이미지 로드
+                
                 loadCustomFeatureImage()
                 backgroundImageView.alpha = 1.0
             } else {
@@ -917,19 +918,25 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
         // 일정 표시 원형 테두리 추가
         let indicatorView = UIView()
         indicatorView.backgroundColor = .clear
-        indicatorView.layer.borderWidth = 2
-        indicatorView.layer.borderColor = UIColor(hex: "FF6A6A").cgColor // 빨간색 테두리
-        indicatorView.layer.cornerRadius = button.bounds.width / 2
+        indicatorView.layer.borderWidth = 1.5  // 더 얇게 설정
+        indicatorView.layer.borderColor = DesignSystem.Color.Tint.main.inUIColor().cgColor
+        
+        
+        let padding: CGFloat = 7.0
+        let width = button.bounds.width - padding * 2
+        let height = button.bounds.height - padding * 2
+        
+        indicatorView.layer.cornerRadius = width / 2
         
         // 터치 이벤트 방지
         indicatorView.isUserInteractionEnabled = false
         
         button.addSubview(indicatorView)
         indicatorView.frame = CGRect(
-            x: 0,
-            y: 0,
-            width: button.bounds.width,
-            height: button.bounds.height
+            x: padding,
+            y: padding,
+            width: width,
+            height: height
         )
         
         // 버튼 뒤에 위치하도록 설정 (텍스트 가리지 않게)

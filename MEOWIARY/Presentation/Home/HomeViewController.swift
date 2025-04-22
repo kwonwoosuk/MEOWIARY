@@ -161,10 +161,11 @@ final class HomeViewController: BaseViewController {
         view.addSubview(toggleViewButton)
         view.addSubview(cardCalendarView)
         view.addSubview(bottomActionView)
+        view.addSubview(scheduleButton)
         bottomActionView.addSubview(calendarButton)
         bottomActionView.addSubview(recent24hButton)
         bottomActionView.addSubview(backButton)
-        bottomActionView.addSubview(scheduleButton)
+        
     }
     
     override func configureLayout() {
@@ -202,11 +203,17 @@ final class HomeViewController: BaseViewController {
         
         toggleViewButton.snp.makeConstraints { make in
             make.top.equalTo(navigationBarView.snp.bottom).offset(DesignSystem.Layout.smallMargin)
-            make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
+            make.trailing.equalTo(scheduleButton.snp.leading).offset(-16)
             make.height.equalTo(40)
             make.width.equalTo(isSmallScreen ? 130 : 140)
         }
         
+        scheduleButton.snp.makeConstraints { make in
+            make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
+            make.top.equalTo(navigationBarView.snp.bottom).offset(DesignSystem.Layout.smallMargin)
+            make.width.height.equalTo(40)
+        }
+
         cardCalendarView.snp.makeConstraints { make in
             make.top.equalTo(toggleViewButton.snp.bottom).offset(DesignSystem.Layout.smallMargin)
             make.leading.trailing.equalToSuperview()
@@ -232,11 +239,7 @@ final class HomeViewController: BaseViewController {
             make.width.equalTo(isSmallScreen ? 150 : 160)
         }
         
-        scheduleButton.snp.makeConstraints { make in
-            make.centerY.equalToSuperview()
-            make.centerX.equalToSuperview() // 중앙에 위치
-            make.width.height.equalTo(40)
-        }
+     
         
         backButton.snp.makeConstraints { make in
             make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
@@ -396,10 +399,7 @@ final class HomeViewController: BaseViewController {
         
         scheduleButton.rx.tap
             .subscribe(onNext: { [weak self] in
-                // 일정 추가 화면 표시
-                let scheduleAddVC = ScheduleAddViewController()
-                scheduleAddVC.modalPresentationStyle = .fullScreen
-                self?.present(scheduleAddVC, animated: true)
+                self?.showScheduleListScreen()
             })
             .disposed(by: disposeBag)
         
@@ -573,6 +573,12 @@ final class HomeViewController: BaseViewController {
         }
         
         print("HomeViewController: 모든 카드를 원래대로 돌림 (애니메이션 적용)")
+    }
+    
+    private func showScheduleListScreen() {
+        let scheduleListVC = ScheduleListViewController()
+        scheduleListVC.modalPresentationStyle = .fullScreen
+        present(scheduleListVC, animated: true)
     }
     
     
