@@ -17,7 +17,22 @@
 		4D86B6582DA298F40055AC80 /* AcknowList in Frameworks */ = {isa = PBXBuildFile; productRef = 4D86B6572DA298F40055AC80 /* AcknowList */; };
 		4DC674672DB78CE300BF22EE /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 4DC674662DB78CE300BF22EE /* FirebaseAnalyticsWithoutAdIdSupport */; };
 		4DC674692DB78CE300BF22EE /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 4DC674682DB78CE300BF22EE /* FirebaseCrashlytics */; };
+		4DC674FF2DB7C42B00BF22EE /* ScheduleWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4DC674EF2DB7C42900BF22EE /* ScheduleWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4DC6752B2DB7C6C800BF22EE /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F32DB7C42900BF22EE /* SwiftUI.framework */; };
+		4DC6752C2DB7C6C800BF22EE /* SwiftUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F32DB7C42900BF22EE /* SwiftUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		4DC6752E2DB7C6CA00BF22EE /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F12DB7C42900BF22EE /* WidgetKit.framework */; };
+		4DC6752F2DB7C6CA00BF22EE /* WidgetKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F12DB7C42900BF22EE /* WidgetKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		4DC674FD2DB7C42B00BF22EE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4D71D9722D958717004E38AE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4DC674EE2DB7C42900BF22EE;
+			remoteInfo = ScheduleWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		4D0269A82D9969AF00572EA7 /* Embed Frameworks */ = {
@@ -31,6 +46,29 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4DC675042DB7C42B00BF22EE /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				4DC674FF2DB7C42B00BF22EE /* ScheduleWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4DC6752D2DB7C6C800BF22EE /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				4DC6752C2DB7C6C800BF22EE /* SwiftUI.framework in Embed Frameworks */,
+				4DC6752F2DB7C6CA00BF22EE /* WidgetKit.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +76,10 @@
 		4D5225E12D9DFA210013C29C /* MEOWIARY.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = MEOWIARY.xcodeproj; sourceTree = "<group>"; };
 		4D71D97A2D958717004E38AE /* MEOWIARY.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MEOWIARY.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D71DA332D95873C004E38AE /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		4DC674EF2DB7C42900BF22EE /* ScheduleWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ScheduleWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		4DC674F12DB7C42900BF22EE /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		4DC674F32DB7C42900BF22EE /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		4DC675052DB7C43100BF22EE /* ScheduleWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScheduleWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -48,6 +90,20 @@
 			);
 			target = 4D71D9792D958717004E38AE /* MEOWIARY */;
 		};
+		4DC675032DB7C42B00BF22EE /* Exceptions for "ScheduleWidget" folder in "ScheduleWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4DC674EE2DB7C42900BF22EE /* ScheduleWidgetExtension */;
+		};
+		4DC6752A2DB7C4CD00BF22EE /* Exceptions for "MEOWIARY" folder in "ScheduleWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Network/Model/Schedule.swift,
+			);
+			target = 4DC674EE2DB7C42900BF22EE /* ScheduleWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -55,8 +111,17 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				4D71D98C2D958719004E38AE /* Exceptions for "MEOWIARY" folder in "MEOWIARY" target */,
+				4DC6752A2DB7C4CD00BF22EE /* Exceptions for "MEOWIARY" folder in "ScheduleWidgetExtension" target */,
 			);
 			path = MEOWIARY;
+			sourceTree = "<group>";
+		};
+		4DC674F52DB7C42900BF22EE /* ScheduleWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4DC675032DB7C42B00BF22EE /* Exceptions for "ScheduleWidget" folder in "ScheduleWidgetExtension" target */,
+			);
+			path = ScheduleWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -76,6 +141,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4DC674EC2DB7C42900BF22EE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4DC6752B2DB7C6C800BF22EE /* SwiftUI.framework in Frameworks */,
+				4DC6752E2DB7C6CA00BF22EE /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -89,9 +163,12 @@
 		4D71D9712D958717004E38AE = {
 			isa = PBXGroup;
 			children = (
+				4DC675052DB7C43100BF22EE /* ScheduleWidgetExtension.entitlements */,
 				4D06C7712D999BA0006BB756 /* APIKey.swift */,
 				4D71DA332D95873C004E38AE /* README.md */,
 				4D71D97C2D958717004E38AE /* MEOWIARY */,
+				4DC674F52DB7C42900BF22EE /* ScheduleWidget */,
+				4DC674F02DB7C42900BF22EE /* Frameworks */,
 				4D71D97B2D958717004E38AE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -100,8 +177,18 @@
 			isa = PBXGroup;
 			children = (
 				4D71D97A2D958717004E38AE /* MEOWIARY.app */,
+				4DC674EF2DB7C42900BF22EE /* ScheduleWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		4DC674F02DB7C42900BF22EE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				4DC674F12DB7C42900BF22EE /* WidgetKit.framework */,
+				4DC674F32DB7C42900BF22EE /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -115,10 +202,12 @@
 				4D71D9772D958717004E38AE /* Frameworks */,
 				4D71D9782D958717004E38AE /* Resources */,
 				4D0269A82D9969AF00572EA7 /* Embed Frameworks */,
+				4DC675042DB7C42B00BF22EE /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				4DC674FE2DB7C42B00BF22EE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				4D71D97C2D958717004E38AE /* MEOWIARY */,
@@ -137,6 +226,29 @@
 			productReference = 4D71D97A2D958717004E38AE /* MEOWIARY.app */;
 			productType = "com.apple.product-type.application";
 		};
+		4DC674EE2DB7C42900BF22EE /* ScheduleWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4DC675002DB7C42B00BF22EE /* Build configuration list for PBXNativeTarget "ScheduleWidgetExtension" */;
+			buildPhases = (
+				4DC674EB2DB7C42900BF22EE /* Sources */,
+				4DC674EC2DB7C42900BF22EE /* Frameworks */,
+				4DC674ED2DB7C42900BF22EE /* Resources */,
+				4DC6752D2DB7C6C800BF22EE /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4DC674F52DB7C42900BF22EE /* ScheduleWidget */,
+			);
+			name = ScheduleWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = ScheduleWidgetExtension;
+			productReference = 4DC674EF2DB7C42900BF22EE /* ScheduleWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -144,11 +256,14 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1620;
+				LastSwiftUpdateCheck = 1630;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
 					4D71D9792D958717004E38AE = {
 						CreatedOnToolsVersion = 16.2;
+					};
+					4DC674EE2DB7C42900BF22EE = {
+						CreatedOnToolsVersion = 16.3;
 					};
 				};
 			};
@@ -180,6 +295,7 @@
 			projectRoot = "";
 			targets = (
 				4D71D9792D958717004E38AE /* MEOWIARY */,
+				4DC674EE2DB7C42900BF22EE /* ScheduleWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -190,6 +306,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D71DA342D95873C004E38AE /* README.md in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4DC674ED2DB7C42900BF22EE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -204,7 +327,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4DC674EB2DB7C42900BF22EE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		4DC674FE2DB7C42B00BF22EE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4DC674EE2DB7C42900BF22EE /* ScheduleWidgetExtension */;
+			targetProxy = 4DC674FD2DB7C42B00BF22EE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		4D71D98E2D958719004E38AE /* Debug */ = {
@@ -212,6 +350,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MEOWIARY/MEOWIARY.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = Z388Z4UCTV;
@@ -247,6 +387,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MEOWIARY/MEOWIARY.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = Z388Z4UCTV;
@@ -396,6 +538,66 @@
 			};
 			name = Release;
 		};
+		4DC675012DB7C42B00BF22EE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = ScheduleWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z388Z4UCTV;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ScheduleWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ScheduleWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kwonws.MEOWIARY.ScheduleWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		4DC675022DB7C42B00BF22EE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = ScheduleWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z388Z4UCTV;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ScheduleWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ScheduleWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kwonws.MEOWIARY.ScheduleWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -413,6 +615,15 @@
 			buildConfigurations = (
 				4D71D98E2D958719004E38AE /* Debug */,
 				4D71D98F2D958719004E38AE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4DC675002DB7C42B00BF22EE /* Build configuration list for PBXNativeTarget "ScheduleWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4DC675012DB7C42B00BF22EE /* Debug */,
+				4DC675022DB7C42B00BF22EE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

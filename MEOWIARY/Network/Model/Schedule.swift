@@ -91,7 +91,7 @@ class ScheduleManager {
     
     private init() {
         // App Group UserDefaults 설정
-        if let groupUserDefaults = UserDefaults(suiteName: "group.com.yourapp.meowiary") {
+        if let groupUserDefaults = UserDefaults(suiteName: "group.com.kwonws.meowiary") {
             self.userDefaults = groupUserDefaults
         } else {
             self.userDefaults = UserDefaults.standard

@@ -780,6 +780,17 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
                 addTodayIndicator(to: dayButton)
             }
             
+            // 해당 날짜에 일정이 있는지 확인하고 표시
+            var dateComponents = DateComponents()
+            dateComponents.year = year
+            dateComponents.month = month
+            dateComponents.day = day
+            
+            if let targetDate = calendar.date(from: dateComponents),
+               ScheduleManager.shared.hasSchedule(on: targetDate) {
+                addScheduleIndicator(to: dayButton)
+            }
+            
             if let dayCard = dayCardData[day] {
                 if isShowingSymptoms {
                     // 증상 모드일 때: 증상 심각도에 따른 색상 표시
@@ -795,7 +806,8 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
                         addImageIndicator(to: dayButton, imagePath: thumbnailPath)
                     }
                 }
-            }        }
+            }
+        }
     }
     
     private func preloadImages() {
@@ -898,6 +910,30 @@ final class CardCell: UICollectionViewCell, UIGestureRecognizerDelegate {
         if let indicator = todayIndicator {
             button.bringSubviewToFront(indicator)
         }
+    }
+    
+    // MARK: - Add Indicator    
+    private func addScheduleIndicator(to button: UIButton) {
+        // 일정 표시 원형 테두리 추가
+        let indicatorView = UIView()
+        indicatorView.backgroundColor = .clear
+        indicatorView.layer.borderWidth = 2
+        indicatorView.layer.borderColor = UIColor(hex: "FF6A6A").cgColor // 빨간색 테두리
+        indicatorView.layer.cornerRadius = button.bounds.width / 2
+        
+        // 터치 이벤트 방지
+        indicatorView.isUserInteractionEnabled = false
+        
+        button.addSubview(indicatorView)
+        indicatorView.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: button.bounds.width,
+            height: button.bounds.height
+        )
+        
+        // 버튼 뒤에 위치하도록 설정 (텍스트 가리지 않게)
+        button.sendSubviewToBack(indicatorView)
     }
     
     

@@ -21,6 +21,15 @@ final class HomeViewController: BaseViewController {
     // MARK: - UI Components
     private let navigationBarView = NavigationBarView()
     
+    private let scheduleButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setImage(UIImage(systemName: "calendar.badge.plus"), for: .normal)
+        button.tintColor = DesignSystem.Color.Tint.main.inUIColor()
+        button.backgroundColor = DesignSystem.Color.Tint.lightGray.inUIColor()
+        button.layer.cornerRadius = 6
+        return button
+    }()
+    
     private let yearSelector: UIView = {
         let view = UIView()
         view.backgroundColor = .white
@@ -143,6 +152,7 @@ final class HomeViewController: BaseViewController {
     // MARK: - UI Setup
     override func configureHierarchy() {
         // Add subviews
+        
         view.addSubview(navigationBarView)
         view.addSubview(yearSelector)
         yearSelector.addSubview(prevYearButton)
@@ -154,6 +164,7 @@ final class HomeViewController: BaseViewController {
         bottomActionView.addSubview(calendarButton)
         bottomActionView.addSubview(recent24hButton)
         bottomActionView.addSubview(backButton)
+        bottomActionView.addSubview(scheduleButton)
     }
     
     override func configureLayout() {
@@ -208,9 +219,22 @@ final class HomeViewController: BaseViewController {
             make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom)
         }
         
-        calendarButton.snp.makeConstraints { make in
+        calendarButton.snp.remakeConstraints { make in
             make.leading.equalToSuperview().offset(DesignSystem.Layout.standardMargin)
             make.centerY.equalToSuperview()
+            make.width.height.equalTo(40)
+        }
+
+        recent24hButton.snp.remakeConstraints { make in
+            make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
+            make.centerY.equalToSuperview()
+            make.height.equalTo(40)
+            make.width.equalTo(isSmallScreen ? 150 : 160)
+        }
+        
+        scheduleButton.snp.makeConstraints { make in
+            make.centerY.equalToSuperview()
+            make.centerX.equalToSuperview() // 중앙에 위치
             make.width.height.equalTo(40)
         }
         
@@ -220,12 +244,7 @@ final class HomeViewController: BaseViewController {
             make.width.height.equalTo(40)
         }
         
-        recent24hButton.snp.makeConstraints { make in
-            make.trailing.equalToSuperview().offset(-DesignSystem.Layout.standardMargin)
-            make.centerY.equalToSuperview()
-            make.height.equalTo(40)
-            make.width.equalTo(isSmallScreen ? 150 : 160)
-        }
+     
     }
     
     override func configureView() {
@@ -372,6 +391,15 @@ final class HomeViewController: BaseViewController {
                 } else {
                     self.showToast(message: "일기가 삭제되었습니다")
                 }
+            })
+            .disposed(by: disposeBag)
+        
+        scheduleButton.rx.tap
+            .subscribe(onNext: { [weak self] in
+                // 일정 추가 화면 표시
+                let scheduleAddVC = ScheduleAddViewController()
+                scheduleAddVC.modalPresentationStyle = .fullScreen
+                self?.present(scheduleAddVC, animated: true)
             })
             .disposed(by: disposeBag)
         
