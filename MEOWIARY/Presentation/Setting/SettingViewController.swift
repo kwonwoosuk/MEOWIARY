@@ -81,7 +81,7 @@ final class SettingViewController: UIViewController {
                
                // UserDefaults 초기화
                resetUserDefaults()
-               
+               ScheduleManager.shared.saveSchedules([])
                // 앱 초기화 완료 토스트 메시지
                showToast(message: "앱이 초기화되었습니다.")
                
