@@ -18,10 +18,10 @@
 		4DC674672DB78CE300BF22EE /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 4DC674662DB78CE300BF22EE /* FirebaseAnalyticsWithoutAdIdSupport */; };
 		4DC674692DB78CE300BF22EE /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 4DC674682DB78CE300BF22EE /* FirebaseCrashlytics */; };
 		4DC674FF2DB7C42B00BF22EE /* ScheduleWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4DC674EF2DB7C42900BF22EE /* ScheduleWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		4DC6752B2DB7C6C800BF22EE /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F32DB7C42900BF22EE /* SwiftUI.framework */; };
-		4DC6752C2DB7C6C800BF22EE /* SwiftUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F32DB7C42900BF22EE /* SwiftUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		4DC6752E2DB7C6CA00BF22EE /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F12DB7C42900BF22EE /* WidgetKit.framework */; };
-		4DC6752F2DB7C6CA00BF22EE /* WidgetKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F12DB7C42900BF22EE /* WidgetKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		4DC675ED2DB804F600BF22EE /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F32DB7C42900BF22EE /* SwiftUI.framework */; };
+		4DC675EE2DB804F600BF22EE /* SwiftUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F32DB7C42900BF22EE /* SwiftUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		4DC675F02DB804F700BF22EE /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F12DB7C42900BF22EE /* WidgetKit.framework */; };
+		4DC675F12DB804F700BF22EE /* WidgetKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC674F12DB7C42900BF22EE /* WidgetKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,14 +57,14 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		4DC6752D2DB7C6C800BF22EE /* Embed Frameworks */ = {
+		4DC675EF2DB804F600BF22EE /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				4DC6752C2DB7C6C800BF22EE /* SwiftUI.framework in Embed Frameworks */,
-				4DC6752F2DB7C6CA00BF22EE /* WidgetKit.framework in Embed Frameworks */,
+				4DC675EE2DB804F600BF22EE /* SwiftUI.framework in Embed Frameworks */,
+				4DC675F12DB804F700BF22EE /* WidgetKit.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -153,8 +153,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4DC6752B2DB7C6C800BF22EE /* SwiftUI.framework in Frameworks */,
-				4DC6752E2DB7C6CA00BF22EE /* WidgetKit.framework in Frameworks */,
+				4DC675ED2DB804F600BF22EE /* SwiftUI.framework in Frameworks */,
+				4DC675F02DB804F700BF22EE /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -241,7 +241,7 @@
 				4DC674EB2DB7C42900BF22EE /* Sources */,
 				4DC674EC2DB7C42900BF22EE /* Frameworks */,
 				4DC674ED2DB7C42900BF22EE /* Resources */,
-				4DC6752D2DB7C6C800BF22EE /* Embed Frameworks */,
+				4DC675EF2DB804F600BF22EE /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -361,7 +361,7 @@
 				CODE_SIGN_ENTITLEMENTS = MEOWIARY/MEOWIARY.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = Z388Z4UCTV;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MEOWIARY/Application/Info.plist;
@@ -377,7 +377,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kwonws.MEOWIARY;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -398,7 +398,7 @@
 				CODE_SIGN_ENTITLEMENTS = MEOWIARY/MEOWIARY.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = Z388Z4UCTV;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MEOWIARY/Application/Info.plist;
@@ -414,7 +414,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kwonws.MEOWIARY;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -560,7 +560,7 @@
 				INFOPLIST_FILE = ScheduleWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ScheduleWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -590,7 +590,7 @@
 				INFOPLIST_FILE = ScheduleWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ScheduleWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

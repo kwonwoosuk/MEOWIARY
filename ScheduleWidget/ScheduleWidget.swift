@@ -104,16 +104,14 @@ struct ScheduleWidgetEntryView : View {
     
     var body: some View {
         ZStack {
-            // 배경을 하얀색으로 변경
-            Color.white
-                .edgesIgnoringSafeArea(.all)
-            
+            // 위젯 크기에 따라 다른 레이아웃 표시
             if family == .systemSmall {
                 smallWidgetLayout
             } else {
                 mediumWidgetLayout
             }
         }
+        .modifier(WidgetBackgroundModifier()) // 배경을 조건부로 설정
     }
     
     // 작은 위젯 레이아웃
@@ -259,6 +257,25 @@ struct ScheduleWidgetEntryView : View {
     }
 }
 
+// 배경 설정을 위한 ViewModifier
+struct WidgetBackgroundModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content
+                .containerBackground(for: .widget) {
+                    Color.white
+                        .edgesIgnoringSafeArea(.all)
+                }
+        } else {
+            content
+                .background(
+                    Color.white
+                        .edgesIgnoringSafeArea(.all)
+                )
+        }
+    }
+}
+
 struct ScheduleWidget: Widget {
     let kind: String = "ScheduleWidget"
 
@@ -291,4 +308,3 @@ extension UIColor {
         self.init(red: red, green: green, blue: blue, alpha: 1.0)
     }
 }
-
