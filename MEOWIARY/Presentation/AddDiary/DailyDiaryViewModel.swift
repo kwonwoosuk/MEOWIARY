@@ -184,6 +184,13 @@ class DailyDiaryViewModel: BaseViewModel {
                         onNext: { _ in
                             isLoadingRelay.accept(false)
                             saveSuccessRelay.accept(())
+                            // Analytics 이벤트 로깅
+                            AnalyticsService.shared.logDiaryCreated(
+                                                    date: self.currentDate,
+                                                    hasImages: !selectedImages.isEmpty,
+                                                    hasText: !diaryText.isEmpty,
+                                                    imageCount: selectedImages.count
+                                                )
                             
                             // 저장 성공 시 알림 발송
                             let calendar = Calendar.current

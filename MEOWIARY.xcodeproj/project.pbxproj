@@ -86,7 +86,7 @@
 		4DC6752A2DB7C4CD00BF22EE /* Exceptions for "MEOWIARY" folder in "ScheduleWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Network/Model/Schedule.swift,
+				Manager/Schedule.swift,
 			);
 			target = 4DC674EE2DB7C42900BF22EE /* ScheduleWidgetExtension */;
 		};

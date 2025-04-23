@@ -21,6 +21,7 @@ final class HospitalSearchViewModel: NSObject, BaseViewModel {
   
   // MARK: - BaseViewModel
   var disposeBag = DisposeBag()
+    private var searchStartTime: Date?
   
   // MARK: - Input & Output Type
   struct Input {
@@ -269,6 +270,15 @@ final class HospitalSearchViewModel: NSObject, BaseViewModel {
   private func searchHospitalsNear(latitude: Double, longitude: Double) {
       isLoadingRelay.accept(true)
       
+      // 검색 시작 시간 기록
+          searchStartTime = Date()
+          
+          // Analytics 이벤트 추가 - 검색 시작
+          AnalyticsService.shared.logHospitalSearchStarted(
+              useCurrentLocation: isUsingCurrentLocationRelay.value,
+              manualLocation: !isUsingCurrentLocationRelay.value
+          )
+      
       // 이전 Task 취소
       searchTask?.cancel()
       
@@ -289,6 +299,19 @@ final class HospitalSearchViewModel: NSObject, BaseViewModel {
                   self.hospitalsRelay.accept(hospitals)
                   self.isLoadingRelay.accept(false)
                   
+                  
+                  // 검색 결과 Analytics 이벤트
+                  if let startTime = self.searchStartTime {
+                      let searchDuration = Date().timeIntervalSince(startTime)
+                      
+                      AnalyticsService.shared.logHospitalSearchResults(
+                        resultsCount: hospitals.count,
+                        latitude: latitude,
+                        longitude: longitude,
+                        searchDuration: searchDuration
+                      )
+                  }
+
                   if hospitals.isEmpty {
                       self.errorRelay.accept("주변에 24시 동물병원이 없습니다.")
                   } else {
@@ -303,6 +326,19 @@ final class HospitalSearchViewModel: NSObject, BaseViewModel {
                   self.hospitalsRelay.accept([])
                   self.isLoadingRelay.accept(false)
                   self.errorRelay.accept("병원 검색 중 오류가 발생했습니다: \(error.localizedDescription)")
+                  
+                  
+                  // 검색 실패 Analytics 이벤트
+                  if let startTime = self.searchStartTime {
+                      let searchDuration = Date().timeIntervalSince(startTime)
+                      
+                      AnalyticsService.shared.logHospitalSearchResults(
+                        resultsCount: 0,
+                        latitude: latitude,
+                        longitude: longitude,
+                        searchDuration: searchDuration
+                      )
+                  }
               }
           }
       }

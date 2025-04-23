@@ -142,6 +142,16 @@ class SymptomRecordViewModel: BaseViewModel {
                                 isLoadingRelay.accept(false)
                                 saveSuccessRelay.accept(())
                                 
+                                // Analytics 이벤트 로깅 
+                                AnalyticsService.shared.logSymptomRecorded(
+                                    symptomName: name,
+                                    severity: severity,
+                                    date: self.currentDate,
+                                    hasImages: !selectedImages.isEmpty,
+                                    imageCount: selectedImages.count,
+                                    hasNotes: !notes.isEmpty
+                                )
+                                
                                 // 증상 저장 성공 알림 발송
                                 let calendar = Calendar.current
                                 let year = calendar.component(.year, from: self.currentDate)

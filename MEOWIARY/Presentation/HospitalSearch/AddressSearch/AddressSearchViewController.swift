@@ -225,9 +225,13 @@ final class AddressSearchViewController: BaseViewController {
         self?.tableView.indexPathsForSelectedRows?.forEach {
           self?.tableView.deselectRow(at: $0, animated: true)
         }
-        
-        if let address = selectedAddress {
-          self?.delegate?.didSelectLocation(coordinate: address.coordinate, addressName: address.addressName)
+          
+          if let address = selectedAddress {
+              // 주소 선택 Analytics 
+              AnalyticsService.shared.logAddressSelected(
+                addressName: address.addressName
+              )
+              self?.delegate?.didSelectLocation(coordinate: address.coordinate, addressName: address.addressName)
           self?.dismiss(animated: true)
         }
       })

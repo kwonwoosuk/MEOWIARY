@@ -260,6 +260,19 @@ class ScheduleAddViewController: BaseViewController {
         // 일정 저장
         ScheduleManager.shared.addSchedule(schedule)
         
+        // 이벤트 추적을 위한 프로퍼티
+        let calendar = Calendar.current
+        let daysFromNow = calendar.dateComponents([.day], from: calendar.startOfDay(for: Date()), to: calendar.startOfDay(for: selectedDate)).day ?? 0
+        
+        AnalyticsService.shared.logScheduleAdded(
+            title: title,
+            scheduleType: scheduleTypes[typeIndex].rawValue,
+            date: selectedDate,
+            daysFromNow: daysFromNow,
+            color: selectedColor
+        )
+        
+        
         // UserDefaults 강제 동기화
         UserDefaults.standard.synchronize()
         

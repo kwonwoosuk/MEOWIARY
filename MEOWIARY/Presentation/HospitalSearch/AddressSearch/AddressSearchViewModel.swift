@@ -84,6 +84,12 @@ final class AddressSearchViewModel: BaseViewModel {
                     self?.addressResultsRelay.accept(results)
                     self?.isSearchingRelay.accept(false)
                     
+                    // 주소 검색 결과 Analytics 추가
+                    AnalyticsService.shared.logAddressSearch(
+                        query: query,
+                        resultsCount: results.count
+                    )
+                    
                     if results.isEmpty {
                         self?.errorRelay.accept("검색 결과가 없습니다.")
                     } else {
@@ -95,6 +101,12 @@ final class AddressSearchViewModel: BaseViewModel {
                     self?.addressResultsRelay.accept([])
                     self?.isSearchingRelay.accept(false)
                     self?.errorRelay.accept("검색 중 오류가 발생했습니다: \(error.localizedDescription)")
+                    
+                    // 검색 실패 Analytics 추가
+                    AnalyticsService.shared.logAddressSearch(
+                        query: query,
+                        resultsCount: 0
+                    )
                 }
             }
         }

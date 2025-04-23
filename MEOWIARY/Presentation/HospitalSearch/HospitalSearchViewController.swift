@@ -399,21 +399,34 @@ final class HospitalSearchViewController: BaseViewController {
                 """,
       preferredStyle: .alert
     )
-    
-    // 전화걸기 액션
-    alert.addAction(UIAlertAction(title: "전화 걸기", style: .default) { _ in
-      if let url = URL(string: "tel://\(hospital.phone.replacingOccurrences(of: "-", with: ""))"),
-         UIApplication.shared.canOpenURL(url) {
-        UIApplication.shared.open(url)
-      }
-    })
-    
-    // 길찾기 액션 (카카오맵 앱으로 연결)
-    alert.addAction(UIAlertAction(title: "길찾기", style: .default) { [weak self] _ in
-      self?.openKakaoMapNavigation(to: hospital)
-    })
-    
-    alert.addAction(UIAlertAction(title: "닫기", style: .cancel))
+      
+      // 전화걸기 액션
+      alert.addAction(UIAlertAction(title: "전화 걸기", style: .default) { _ in
+          // 전화걸기 이벤트 추적
+          AnalyticsService.shared.logHospitalPhoneCall(
+            hospitalName: hospital.name,
+            phoneNumber: hospital.phone
+          )
+          
+          if let url = URL(string: "tel://\(hospital.phone.replacingOccurrences(of: "-", with: ""))"),
+             UIApplication.shared.canOpenURL(url) {
+              UIApplication.shared.open(url)
+          }
+      })
+      
+      // 길찾기 액션 (카카오맵 앱으로 연결)
+      alert.addAction(UIAlertAction(title: "길찾기", style: .default) { [weak self] _ in
+          // 네비게이션 요청 이벤트 추적
+          AnalyticsService.shared.logHospitalNavigationRequested(
+            hospitalName: hospital.name,
+            distance: hospital.distance,
+            latitude: hospital.coordinate.latitude,
+            longitude: hospital.coordinate.longitude
+          )
+          self?.openKakaoMapNavigation(to: hospital)
+      })
+      
+      alert.addAction(UIAlertAction(title: "닫기", style: .cancel))
     
     present(alert, animated: true)
   }
