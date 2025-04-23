@@ -122,7 +122,7 @@ class ScheduleListViewController: BaseViewController {
     
     override func configureView() {
         view.backgroundColor = .white
-        navigationBarView.configure(title: "일정 관리", leftButtonType: .back)
+        navigationBarView.configure(title: "일정", leftButtonType: .back)
         tableView.delegate = self
     }
     
