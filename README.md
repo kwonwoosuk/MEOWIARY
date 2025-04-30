@@ -1,6 +1,14 @@
 # 📝🐈MEOWIARY
 
-반려묘의 일상과 건강을 효과적으로 기록하고 관리할 수 있는 iOS 애플리케이션입니다. 사진 기록부터 건강 증상 관리, 24시 병원 검색까지 반려묘와 함께하는 일상을 위한 종합 관리 솔루션입니다.
+## 💁🏻‍♂️ 프로젝트 소개
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MEOWIARY는 반려묘의 일상을 기록하고 건강 상태를 관리할 수 있는 앱입니다.    
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;사용자는 반려묘의 일상을 사진과 함께 기록하고, 증상을 간편하게 관리하며    
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;응급상황시 빠르게 주변 24시 동물병원을 검색할 수 있습니다.    
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;월별 캘린더 기능을 통해 기록을 한눈에 확인할 수 있으며    
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;증상의 심각도와 특징을 쉽게 기록할 수 있습니다.  
+
+
 
 <div align="center">
     
@@ -25,14 +33,6 @@
 - **유지보수 기간**: 2025.04.10 ~ 현재 (진행중)
 - **개발 인원**: 1명
 - **담당 업무**: 기획, 디자인, 개발, 테스트
-
-## 💁🏻‍♂️ 프로젝트 소개
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MEOWIARY는 반려묘의 일상을 기록하고 건강 상태를 관리할 수 있는 앱입니다.    
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;사용자는 반려묘의 일상을 사진과 함께 기록하고, 증상을 간편하게 관리하며    
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;응급상황시 빠르게 주변 24시 동물병원을 검색할 수 있습니다.    
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;월별 캘린더 기능을 통해 기록을 한눈에 확인할 수 있으며    
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;증상의 심각도와 특징을 쉽게 기록할 수 있습니다.   
 
 
 ## ⭐️ 주요 기능
